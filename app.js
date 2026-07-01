@@ -856,31 +856,42 @@
     const btn = $('#btnInstalarApp');
     if (!btn) return;
 
-    btn.hidden = true;
+    const esconder = () => {
+      btn.hidden = true;
+      btn.setAttribute('aria-hidden', 'true');
+      btn.style.display = 'none';
+    };
+
+    const mostrar = texto => {
+      btn.textContent = texto;
+      btn.hidden = false;
+      btn.removeAttribute('aria-hidden');
+      btn.style.display = 'inline-flex';
+    };
+
+    esconder();
 
     if (estaAbertoComoAplicativo()) return;
 
     const { isAndroid, isIOS, isWindows } = detectarPlataforma();
 
-    // No Android/Chrome, só mostra o botão quando o próprio navegador
-    // informa que o app ainda pode ser instalado. Isso evita o botão
-    // aparecer dentro do app já baixado/instalado.
+    // Android/Chrome: só mostra se o navegador disparou o evento nativo de instalação.
+    // Isso impede o botão de aparecer dentro do app já instalado ou como falso positivo.
     if (isAndroid) {
       if (!deferredInstallPrompt) return;
-      btn.textContent = 'Baixar aplicativo';
-      btn.hidden = false;
+      mostrar('Baixar aplicativo');
       return;
     }
 
+    // iPhone não dispara beforeinstallprompt. Mantém instrução manual só no Safari/navegador.
     if (isIOS) {
-      btn.textContent = 'Baixar aplicativo';
-      btn.hidden = false;
+      mostrar('Baixar aplicativo');
       return;
     }
 
+    // Windows: mostra só no navegador normal. Em PWA/atalho instalado, display-mode esconde.
     if (isWindows) {
-      btn.textContent = 'Adicionar atalho à área de trabalho';
-      btn.hidden = false;
+      mostrar('Adicionar atalho à área de trabalho');
       return;
     }
   }
