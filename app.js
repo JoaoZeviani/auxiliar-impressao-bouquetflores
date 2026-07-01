@@ -274,10 +274,6 @@
       input.addEventListener('input', () => {
         setByPath(state, input.dataset.bind, input.value);
         if (input.dataset.bind === 'pedido.vendedor') lembrarVendedor(input.value);
-        if (input.dataset.bind === 'pedido.dataEntrega') {
-          const atualizouDia = sincronizarDiaSemanaComData(false);
-          if (atualizouDia || !String(input.value || '').trim()) renderDiaSemanaInput();
-        }
         salvarDadosDebounced();
         renderCartaoTipo();
         renderPreview();
@@ -285,10 +281,8 @@
       input.addEventListener('change', () => {
         setByPath(state, input.dataset.bind, input.value);
         if (input.dataset.bind === 'pedido.vendedor') lembrarVendedor(input.value);
-        if (input.dataset.bind === 'pedido.dataEntrega') sincronizarDiaSemanaComData(true);
         salvarDadosDebounced();
         renderVendedores();
-        renderInputs();
         renderPreview();
       });
     });
@@ -306,17 +300,6 @@
     if (valorInput) {
       valorInput.addEventListener('blur', () => {
         normalizarValorPedido();
-        salvarDadosDebounced();
-        renderInputs();
-        renderPreview();
-      });
-    }
-
-    const dataEntregaInput = $('[data-bind="pedido.dataEntrega"]');
-    if (dataEntregaInput) {
-      dataEntregaInput.addEventListener('blur', () => {
-        setByPath(state, 'pedido.dataEntrega', dataEntregaInput.value);
-        sincronizarDiaSemanaComData(true);
         salvarDadosDebounced();
         renderInputs();
         renderPreview();
@@ -442,13 +425,6 @@
     });
     $$('input[name="tipoCartao"]').forEach(radio => {
       radio.checked = radio.value === state.cartao.tipo;
-    });
-  }
-
-  function renderDiaSemanaInput() {
-    const value = String(state.pedido.diaSemana || '');
-    $$('[data-bind="pedido.diaSemana"]').forEach(input => {
-      if (input.value !== value) input.value = value;
     });
   }
 
@@ -681,172 +657,19 @@
     renderTudo();
   }
 
-  function sincronizarDiaSemanaComData(formatarData) {
-    const texto = String(state.pedido.dataEntrega || '').trim();
-    if (!texto) {
-      state.pedido.diaSemana = '';
-      return false;
-    }
-
-    const data = parseDataEntrega(texto);
-    if (!data) return false;
-
-    state.pedido.diaSemana = weekday(data);
-    if (formatarData) state.pedido.dataEntrega = formatDate(data);
-    return true;
-  }
-
   function splitDateParts(value) {
     const texto = String(value || '').trim();
     if (!texto) return { dia: '', mes: '', ano: '' };
-
-    const data = parseDataEntrega(texto);
-    if (data) {
-      return {
-        dia: pad2(data.getDate()),
-        mes: pad2(data.getMonth() + 1),
-        ano: String(data.getFullYear())
-      };
-    }
-
     const partes = texto.match(/\d+/g) || [];
     if (partes.length >= 3) {
       let [dia, mes, ano] = partes;
       if (dia.length === 4) [ano, mes, dia] = partes;
-      return { dia: pad2(dia), mes: pad2(mes), ano: normalizarAno(ano) || '' };
+      return { dia: pad2(dia), mes: pad2(mes), ano: String(ano).padStart(4, '20').slice(-4) };
     }
     const digits = texto.replace(/\D/g, '');
-    if (digits.length === 8) {
-      if (Number(digits.slice(0, 4)) >= 1900) {
-        return { dia: digits.slice(6, 8), mes: digits.slice(4, 6), ano: digits.slice(0, 4) };
-      }
-      return { dia: digits.slice(0, 2), mes: digits.slice(2, 4), ano: digits.slice(4, 8) };
-    }
+    if (digits.length >= 8) return { dia: digits.slice(0, 2), mes: digits.slice(2, 4), ano: digits.slice(4, 8) };
     if (digits.length === 6) return { dia: digits.slice(0, 2), mes: digits.slice(2, 4), ano: `20${digits.slice(4, 6)}` };
-    if (digits.length === 4) return { dia: digits.slice(0, 2), mes: digits.slice(2, 4), ano: '' };
     return { dia: texto, mes: '', ano: '' };
-  }
-
-  function parseDataEntrega(value) {
-    let texto = String(value || '').trim();
-    if (!texto) return null;
-
-    const normalizado = removerAcentos(texto).toLowerCase();
-    if (/^(hoje|hj)$/.test(normalizado)) return dateOnly(new Date());
-    if (/^(amanha|amanhã|amanh|aman)$/.test(normalizado)) {
-      const d = dateOnly(new Date());
-      d.setDate(d.getDate() + 1);
-      return d;
-    }
-
-    const porMesExtenso = parseDataComMesExtenso(normalizado);
-    if (porMesExtenso) return porMesExtenso;
-
-    const numeros = texto.match(/\d+/g) || [];
-    if (numeros.length >= 3) {
-      let [a, b, c] = numeros;
-      if (a.length === 4) return criarData(a, b, c, false);
-      return criarData(c, b, a, false);
-    }
-
-    if (numeros.length === 2) {
-      const [dia, mes] = numeros;
-      const ano = escolherAnoParaDiaMes(dia, mes);
-      return criarData(ano, mes, dia, true);
-    }
-
-    const digits = texto.replace(/\D/g, '');
-    if (digits.length === 8) {
-      if (Number(digits.slice(0, 4)) >= 1900) {
-        return criarData(digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8), false);
-      }
-      return criarData(digits.slice(4, 8), digits.slice(2, 4), digits.slice(0, 2), false);
-    }
-    if (digits.length === 6) {
-      return criarData(normalizarAno(digits.slice(4, 6)), digits.slice(2, 4), digits.slice(0, 2), false);
-    }
-    if (digits.length === 4) {
-      const dia = digits.slice(0, 2);
-      const mes = digits.slice(2, 4);
-      const ano = escolherAnoParaDiaMes(dia, mes);
-      return criarData(ano, mes, dia, true);
-    }
-
-    return null;
-  }
-
-  function parseDataComMesExtenso(texto) {
-    const meses = {
-      janeiro: 1, jan: 1,
-      fevereiro: 2, fev: 2,
-      marco: 3, mar: 3,
-      abril: 4, abr: 4,
-      maio: 5, mai: 5,
-      junho: 6, jun: 6,
-      julho: 7, jul: 7,
-      agosto: 8, ago: 8,
-      setembro: 9, set: 9,
-      outubro: 10, out: 10,
-      novembro: 11, nov: 11,
-      dezembro: 12, dez: 12
-    };
-
-    const numeros = texto.match(/\b\d{1,4}\b/g) || [];
-    const dia = numeros[0];
-    if (!dia) return null;
-
-    const nomesMeses = Object.keys(meses).sort((a, b) => b.length - a.length);
-    const nomeMes = nomesMeses.find(nome => new RegExp(`\\b${nome}\\b`).test(texto));
-    if (!nomeMes) return null;
-
-    const mes = meses[nomeMes];
-    const possivelAno = numeros.length >= 2 ? numeros[numeros.length - 1] : '';
-    const temAno = Boolean(possivelAno && possivelAno !== dia);
-    const ano = temAno ? normalizarAno(possivelAno) : escolherAnoParaDiaMes(dia, mes);
-    return criarData(ano, mes, dia, !temAno);
-  }
-
-  function criarData(ano, mes, dia, permitirAnoAutomatico) {
-    const y = Number(normalizarAno(ano));
-    const m = Number(String(mes).replace(/\D/g, ''));
-    const d = Number(String(dia).replace(/\D/g, ''));
-    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null;
-    if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
-
-    let data = new Date(y, m - 1, d);
-    if (data.getFullYear() !== y || data.getMonth() !== m - 1 || data.getDate() !== d) return null;
-
-    if (permitirAnoAutomatico) {
-      const hoje = dateOnly(new Date());
-      if (data < hoje) {
-        data = new Date(y + 1, m - 1, d);
-        if (data.getMonth() !== m - 1 || data.getDate() !== d) return null;
-      }
-    }
-
-    return data;
-  }
-
-  function escolherAnoParaDiaMes(dia, mes) {
-    const anoAtual = new Date().getFullYear();
-    const data = criarData(anoAtual, mes, dia, false);
-    if (!data) return anoAtual;
-    return data < dateOnly(new Date()) ? anoAtual + 1 : anoAtual;
-  }
-
-  function normalizarAno(value) {
-    const text = String(value || '').replace(/\D/g, '');
-    if (!text) return '';
-    if (text.length <= 2) return String(2000 + Number(text.padStart(2, '0')));
-    return text.padStart(4, '0').slice(-4);
-  }
-
-  function dateOnly(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  }
-
-  function removerAcentos(value) {
-    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
   function pad2(value) {
@@ -1025,40 +848,66 @@
     return { isAndroid, isIOS, isWindows };
   }
 
+  function veioDoAtalhoInstalado() {
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      return params.get('app') === '1' || params.get('source') === 'pwa' || params.get('utm_source') === 'homescreen';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function estaAbertoComoAplicativo() {
-    return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return veioDoAtalhoInstalado()
+      || window.matchMedia?.('(display-mode: standalone)').matches
+      || window.matchMedia?.('(display-mode: fullscreen)').matches
+      || window.matchMedia?.('(display-mode: minimal-ui)').matches
+      || window.navigator.standalone === true
+      || document.referrer.startsWith('android-app://');
   }
 
   function atualizarBotaoInstalacao() {
     const btn = $('#btnInstalarApp');
     if (!btn) return;
 
-    if (estaAbertoComoAplicativo()) {
+    const esconder = () => {
       btn.hidden = true;
-      return;
-    }
+      btn.setAttribute('aria-hidden', 'true');
+      btn.style.display = 'none';
+    };
+
+    const mostrar = texto => {
+      btn.textContent = texto;
+      btn.hidden = false;
+      btn.removeAttribute('aria-hidden');
+      btn.style.display = 'inline-flex';
+    };
+
+    esconder();
+
+    if (estaAbertoComoAplicativo()) return;
 
     const { isAndroid, isIOS, isWindows } = detectarPlataforma();
 
+    // Android/Chrome: só mostra se o navegador disparou o evento nativo de instalação.
+    // Isso impede o botão de aparecer dentro do app já instalado ou como falso positivo.
     if (isAndroid) {
-      btn.textContent = 'Baixar aplicativo';
-      btn.hidden = false;
+      if (!deferredInstallPrompt) return;
+      mostrar('Baixar aplicativo');
       return;
     }
 
+    // iPhone não dispara beforeinstallprompt. Mantém instrução manual só no Safari/navegador.
     if (isIOS) {
-      btn.textContent = 'Baixar aplicativo';
-      btn.hidden = false;
+      mostrar('Baixar aplicativo');
       return;
     }
 
+    // Windows: mostra só no navegador normal. Em PWA/atalho instalado, display-mode esconde.
     if (isWindows) {
-      btn.textContent = 'Adicionar atalho à área de trabalho';
-      btn.hidden = false;
+      mostrar('Adicionar atalho à área de trabalho');
       return;
     }
-
-    btn.hidden = true;
   }
 
   async function instalarAppAndroid() {
@@ -1115,7 +964,6 @@
 
   function imprimir(tipo) {
     normalizarValorPedido();
-    sincronizarDiaSemanaComData(true);
     renderInputs();
     renderPreview();
     limparModoImpressao();
