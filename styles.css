@@ -36,6 +36,11 @@ button {
   color: #392a27;
   cursor: pointer;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
   transition: transform .08s ease, background .2s ease, box-shadow .2s ease;
 }
 button:hover { background: #ead6ce; }
@@ -135,6 +140,7 @@ textarea { resize: vertical; min-height: 92px; }
 }
 .sticky-actions button {
   width: 100%;
+  min-height: 42px;
 }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
 .check-grid.one-column { grid-template-columns: 1fr; }
