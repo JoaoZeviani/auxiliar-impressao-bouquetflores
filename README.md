@@ -25,19 +25,6 @@ Em **Configurações**, você pode:
 - preencher um pedido teste;
 - copiar posições para ajuste futuro.
 
-## GitHub Pages
-
-Suba para o repositório apenas:
-
-- `index.html`
-- `styles.css`
-- `app.js`
-- `manifest.webmanifest`
-- `service-worker.js`
-- `assets/`
-
-Não suba `dados/`, `.bat`, `node_modules/` ou `package.json`.
-
 ## Celular
 
 Abra o site no navegador e use **Baixar aplicativo** ou **Adicionar à tela inicial**.
