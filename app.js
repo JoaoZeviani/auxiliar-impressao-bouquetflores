@@ -276,8 +276,7 @@
         setByPath(state, path, input.value);
         if (path === 'pedido.vendedor') lembrarVendedor(input.value);
         if (path === 'pedido.dataEntrega') {
-          sincronizarDiaSemanaComData(false);
-          renderDiaSemanaInput();
+          aplicarDataEntregaDigitada(false);
         }
         salvarDadosDebounced();
         renderCartaoTipo();
@@ -287,7 +286,7 @@
         const path = input.dataset.bind;
         setByPath(state, path, input.value);
         if (path === 'pedido.vendedor') lembrarVendedor(input.value);
-        if (path === 'pedido.dataEntrega') sincronizarDiaSemanaComData(true);
+        if (path === 'pedido.dataEntrega') aplicarDataEntregaDigitada(true);
         salvarDadosDebounced();
         renderVendedores();
         renderInputs();
@@ -317,8 +316,15 @@
     const dataEntregaInput = $('[data-bind="pedido.dataEntrega"]');
     if (dataEntregaInput) {
       dataEntregaInput.addEventListener('blur', () => {
-        setByPath(state, 'pedido.dataEntrega', dataEntregaInput.value);
-        sincronizarDiaSemanaComData(true);
+        aplicarDataEntregaDigitada(true);
+        salvarDadosDebounced();
+        renderInputs();
+        renderPreview();
+      });
+      dataEntregaInput.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        aplicarDataEntregaDigitada(true);
         salvarDadosDebounced();
         renderInputs();
         renderPreview();
@@ -696,6 +702,35 @@
     state.pedido.diaSemana = weekday(data);
     if (formatarData) state.pedido.dataEntrega = formatDate(data);
     return true;
+  }
+
+  function aplicarDataEntregaDigitada(formatarCampo) {
+    const input = $('[data-bind="pedido.dataEntrega"]');
+    const texto = input ? input.value : state.pedido.dataEntrega;
+    state.pedido.dataEntrega = texto;
+
+    const deveFormatar = Boolean(formatarCampo || deveFormatarDataDuranteDigitacao(texto));
+    const dataValida = sincronizarDiaSemanaComData(deveFormatar);
+
+    if (dataValida && input && deveFormatar && input.value !== state.pedido.dataEntrega) {
+      input.value = state.pedido.dataEntrega;
+    }
+
+    renderDiaSemanaInput();
+    return dataValida;
+  }
+
+  function deveFormatarDataDuranteDigitacao(value) {
+    const texto = String(value || '').trim();
+    if (!texto) return false;
+
+    const normalizado = removerAcentos(texto).toLowerCase();
+    if (/^(hoje|hj|amanha|amanh|aman)$/.test(normalizado)) return true;
+    if (/^\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2}$/.test(texto)) return true;
+    if (/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}$/.test(texto)) return true;
+
+    const digits = texto.replace(/\D/g, '');
+    return /^\d+$/.test(texto) && (digits.length === 6 || digits.length === 8);
   }
 
   function splitDateParts(value) {
