@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#9c5a55">
+  <title>Auxiliar de Impressão - Bouquet Flores</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/icon.png" alt="" class="brand-icon">
+        <div>
+          <h1>Auxiliar de Impressão</h1>
+          <p>Bouquet Flores</p>
+        </div>
+      </div>
+
+      <nav class="tabs" aria-label="Telas do programa">
+        <button class="tab active" data-screen="pedido">Pedido</button>
+        <button class="tab" data-screen="cartao">Cartão</button>
+        <button class="tab" data-screen="ajustes">Configurações</button>
+        <button class="tab install-tab" id="btnInstalarApp" type="button" hidden>Instalar app</button>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section class="panel form-panel">
+        <section class="screen active" id="screen-pedido">
+          <div class="editor-layout">
+            <div class="editor-form">
+          <div class="screen-title-row">
+            <div>
+              <h2>Preencher pedido</h2>
+              <p>A impressão sai somente com os dados preenchidos, sem imprimir o modelo do papel.</p>
+            </div>
+            <button class="secondary" id="btnLimparPedido">Limpar</button>
+          </div>
+
+          <div class="grid-form compact-grid">
+            <label>Vendedor
+              <select data-bind="pedido.vendedor" id="selectVendedorPedido"></select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Entrega</legend>
+            <div class="grid-form">
+              <label>Entregar para
+                <input type="text" data-bind="pedido.entregarPara" autocomplete="off">
+              </label>
+              <label>Telefone
+                <input type="text" data-bind="pedido.telefone" autocomplete="off">
+              </label>
+              <label class="wide">Endereço
+                <input type="text" data-bind="pedido.endereco" autocomplete="off">
+              </label>
+              <label>Bairro
+                <input type="text" data-bind="pedido.bairro" autocomplete="off">
+              </label>
+              <label>Período entrega
+                <input type="text" data-bind="pedido.periodoEntrega" autocomplete="off">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Data</legend>
+            <div class="button-row wrap">
+              <button id="btnHoje" type="button">Data de hoje</button>
+              <button id="btnAmanha" type="button">Data de amanhã</button>
+            </div>
+            <div class="grid-form compact-grid top-gap">
+              <label>Data entrega
+                <input type="text" data-bind="pedido.dataEntrega" autocomplete="off" inputmode="numeric">
+              </label>
+              <label>Dia da semana
+                <input type="text" data-bind="pedido.diaSemana" autocomplete="off">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Pedido e pagamento</legend>
+            <label>Pedido
+              <textarea data-bind="pedido.pedido" rows="8"></textarea>
+            </label>
+            <div class="grid-form compact-grid top-gap">
+              <label>Valor
+                <input type="text" data-bind="pedido.valor" inputmode="decimal" autocomplete="off">
+              </label>
+            </div>
+            <div class="check-grid one-column" role="group" aria-label="Formas de pagamento">
+              <label><input type="checkbox" data-payment="Vem pagar"> Vem pagar</label>
+              <label><input type="checkbox" data-payment="Receber"> Receber</label>
+              <label><input type="checkbox" data-payment="Cartão"> Cartão</label>
+              <label><input type="checkbox" data-payment="Pix"> Pix</label>
+              <label><input type="checkbox" data-payment="Dinheiro"> Dinheiro</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Cliente que comprou</legend>
+            <div class="grid-form compact-grid">
+              <label>Cliente
+                <input type="text" data-bind="pedido.cliente" autocomplete="off">
+              </label>
+              <label>Fone
+                <input type="text" data-bind="pedido.foneCliente" autocomplete="off">
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="button-row sticky-actions">
+            <button id="btnCopiarParaCartao" type="button">Copiar destinatário para cartão</button>
+            <button id="btnPreviewPedido" type="button" class="secondary preview-open-button">Preview pedido</button>
+            <button id="btnImprimirPedido" type="button" class="primary">Imprimir pedido</button>
+          </div>
+            </div>
+            <aside class="inline-preview-panel" aria-label="Preview do pedido">
+              <div class="inline-preview-header">
+                <strong>Preview do pedido</strong>
+                <span>O modelo aparece só aqui. Na impressão saem só os dados.</span>
+              </div>
+              <div class="preview-stage inline-stage" id="pedidoInlinePreviewRoot">
+                <section class="print-sheet sheet-pedido" data-preview-kind="pedido">
+                  <img src="assets/pedido_template_0000.png" class="template-img" alt="Modelo do pedido">
+                  <div class="overlay pedido-overlay"></div>
+                </section>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-cartao">
+          <div class="editor-layout">
+            <div class="editor-form">
+          <div class="screen-title-row">
+            <div>
+              <h2>Preencher cartão</h2>
+              <p>Escolha cartão com ou sem dizeres. Pedido e cartão imprimem separadamente.</p>
+            </div>
+            <button class="secondary" id="btnLimparCartao" type="button">Limpar</button>
+          </div>
+
+          <fieldset>
+            <legend>Tipo de cartão</legend>
+            <div class="segmented" role="group" aria-label="Tipo de cartão">
+              <label><input type="radio" name="tipoCartao" value="com"> Cliente deseja escrever dizeres</label>
+              <label><input type="radio" name="tipoCartao" value="sem"> Cliente não deseja escrever dizeres</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Destinatário</legend>
+            <div class="grid-form">
+              <label>Nome do destinatário
+                <input type="text" data-bind="cartao.destinatario" autocomplete="off">
+              </label>
+              <label>Telefone
+                <input type="text" data-bind="cartao.telefone" autocomplete="off">
+              </label>
+              <label class="wide">Endereço / complemento
+                <input type="text" data-bind="cartao.endereco" autocomplete="off">
+              </label>
+            </div>
+            <div class="button-row wrap top-gap">
+              <button id="btnCopiarDoPedido" type="button">Copiar do pedido</button>
+            </div>
+          </fieldset>
+
+          <fieldset id="fieldsetDizeres">
+            <legend>Dizeres do cartão</legend>
+            <label>Mensagem
+              <textarea data-bind="cartao.mensagem" rows="9"></textarea>
+            </label>
+            <div class="font-tools">
+              <button id="btnFonteMenor" type="button">A−</button>
+              <span id="fonteAtual">Fonte automática</span>
+              <button id="btnFonteMaior" type="button">A+</button>
+              <button id="btnFonteAuto" type="button" class="secondary">Voltar para automático</button>
+            </div>
+          </fieldset>
+
+          <div class="button-row sticky-actions">
+            <button id="btnPreviewCartao" type="button" class="secondary preview-open-button">Preview cartão</button>
+            <button id="btnImprimirCartao" type="button" class="primary">Imprimir cartão</button>
+          </div>
+            </div>
+            <aside class="inline-preview-panel" aria-label="Preview do cartão">
+              <div class="inline-preview-header">
+                <strong>Preview do cartão</strong>
+                <span>O modelo aparece só aqui. Na impressão saem só os dados.</span>
+              </div>
+              <div class="preview-stage inline-stage" id="cartaoInlinePreviewRoot">
+                <section class="print-sheet sheet-cartao-dizeres" data-preview-kind="cartao-com">
+                  <img src="assets/cartao_dizeres_template.png" class="template-img" alt="Modelo do cartão com dizeres">
+                  <div class="overlay cartao-dizeres-overlay"></div>
+                </section>
+                <section class="print-sheet sheet-cartao-sem" data-preview-kind="cartao-sem">
+                  <img src="assets/cartao_sem_dizeres_template.png" class="template-img" alt="Modelo do cartão sem dizeres">
+                  <div class="overlay cartao-sem-overlay"></div>
+                </section>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-ajustes">
+          <h2>Configurações</h2>
+          <p>Aqui ficam vendedores, fonte dos dizeres, dados de teste e ajustes finos de posição.</p>
+
+          <div class="config-layout">
+            <div class="config-controls">
+
+          <fieldset>
+            <legend>Dados de teste</legend>
+            <p>Preenche dados fictícios para testar alinhamento, preview e impressão.</p>
+            <div class="button-row wrap">
+              <button id="btnPreencherTeste" type="button">Preencher pedido teste</button>
+              <button id="btnLimparTudo" type="button" class="secondary">Limpar</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Vendedores</legend>
+            <p>O último vendedor usado fica salvo automaticamente.</p>
+            <div class="seller-manager">
+              <label>Novo vendedor
+                <input type="text" id="novoVendedor" autocomplete="off">
+              </label>
+              <button id="btnAdicionarVendedor" type="button">Adicionar vendedor</button>
+            </div>
+            <div class="seller-list" id="listaVendedores"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Fonte dos dizeres</legend>
+            <div class="grid-form compact-grid">
+              <label>Tipo de fonte
+                <select data-bind="cartao.fontFamily" id="selectFonteDizeres">
+                  <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+                  <option value="'Freestyle Script', 'Brush Script MT', cursive">Freestyle Script</option>
+                  <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                  <option value="Arial, Helvetica, sans-serif">Arial</option>
+                  <option value="'Trebuchet MS', Arial, sans-serif">Trebuchet MS</option>
+                  <option value="'Brush Script MT', cursive">Brush Script</option>
+                  <option value="'Lucida Handwriting', cursive">Lucida Handwriting</option>
+                </select>
+              </label>
+              <label>Ajuste manual do tamanho
+                <input type="number" step="1" min="-8" max="8" data-bind-number="cartao.fontDelta">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Pedido — deslocamento geral</legend>
+            <div class="grid-form compact-grid">
+              <label>Deslocamento X (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.pedido.x">
+              </label>
+              <label>Deslocamento Y (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.pedido.y">
+              </label>
+              <label>Ticks X (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.pedido.tickX">
+              </label>
+              <label>Ticks Y (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.pedido.tickY">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Cartão com dizeres</legend>
+            <div class="grid-form compact-grid">
+              <label>Deslocamento X (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.cartaoDizeres.x">
+              </label>
+              <label>Deslocamento Y (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.cartaoDizeres.y">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Cartão sem dizeres</legend>
+            <div class="grid-form compact-grid">
+              <label>Deslocamento X (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.cartaoSemDizeres.x">
+              </label>
+              <label>Deslocamento Y (mm)
+                <input type="number" step="0.5" data-bind-number="calibragem.cartaoSemDizeres.y">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Mover campos individualmente</legend>
+            <p>Use estes ajustes se apenas um campo estiver fora do lugar. X move para direita/esquerda; Y move para baixo/cima.</p>
+            <div class="button-row wrap top-gap">
+              <button id="btnSalvarPosicao" type="button">Salvar posição</button>
+            </div>
+            <div class="field-offset-list top-gap" id="calibragemCampos"></div>
+          </fieldset>
+
+            </div>
+            <aside class="config-preview-aside">
+              <fieldset class="config-preview-panel">
+                <legend>Preview para ajuste</legend>
+                <p>Este preview fica sempre aberto ao lado das configurações para facilitar a calibração dos campos.</p>
+                <div class="preview-toggle">
+                  <button id="showPedidoPreview" type="button" class="active">Pedido</button>
+                  <button id="showCartaoPreview" type="button">Cartão</button>
+                </div>
+                <div class="preview-stage config-stage" id="configPreviewRoot">
+                  <section class="print-sheet sheet-pedido" data-preview-kind="pedido">
+                    <img src="assets/pedido_template_0000.png" class="template-img" alt="Modelo do pedido">
+                    <div class="overlay pedido-overlay"></div>
+                  </section>
+                  <section class="print-sheet sheet-cartao-dizeres" data-preview-kind="cartao-com">
+                    <img src="assets/cartao_dizeres_template.png" class="template-img" alt="Modelo do cartão com dizeres">
+                    <div class="overlay cartao-dizeres-overlay"></div>
+                  </section>
+                  <section class="print-sheet sheet-cartao-sem" data-preview-kind="cartao-sem">
+                    <img src="assets/cartao_sem_dizeres_template.png" class="template-img" alt="Modelo do cartão sem dizeres">
+                    <div class="overlay cartao-sem-overlay"></div>
+                  </section>
+                </div>
+              </fieldset>
+            </aside>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="preview-modal hidden" id="previewModal" aria-hidden="true">
+    <div class="preview-modal-card" role="dialog" aria-modal="true" aria-label="Preview de impressão">
+      <div class="preview-modal-header">
+        <div>
+          <h2 id="previewModalTitle">Preview</h2>
+          <p>O modelo aparece só no preview. Na impressão, saem somente os dados preenchidos.</p>
+        </div>
+        <button id="btnFecharPreview" type="button" class="secondary">Fechar</button>
+      </div>
+      <div class="preview-stage modal-stage" id="modalPreviewRoot">
+        <section class="print-sheet sheet-pedido" data-preview-kind="pedido">
+          <img src="assets/pedido_template_0000.png" class="template-img" alt="Modelo do pedido">
+          <div class="overlay pedido-overlay"></div>
+        </section>
+        <section class="print-sheet sheet-cartao-dizeres" data-preview-kind="cartao-com">
+          <img src="assets/cartao_dizeres_template.png" class="template-img" alt="Modelo do cartão com dizeres">
+          <div class="overlay cartao-dizeres-overlay"></div>
+        </section>
+        <section class="print-sheet sheet-cartao-sem" data-preview-kind="cartao-sem">
+          <img src="assets/cartao_sem_dizeres_template.png" class="template-img" alt="Modelo do cartão sem dizeres">
+          <div class="overlay cartao-sem-overlay"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="print-area" id="printArea" aria-hidden="true">
+    <section class="print-sheet sheet-pedido" data-preview-kind="pedido">
+      <img src="assets/pedido_template_0000.png" class="template-img" alt="Modelo do pedido">
+      <div class="overlay pedido-overlay"></div>
+    </section>
+    <section class="print-sheet sheet-cartao-dizeres" data-preview-kind="cartao-com">
+      <img src="assets/cartao_dizeres_template.png" class="template-img" alt="Modelo do cartão com dizeres">
+      <div class="overlay cartao-dizeres-overlay"></div>
+    </section>
+    <section class="print-sheet sheet-cartao-sem" data-preview-kind="cartao-sem">
+      <img src="assets/cartao_sem_dizeres_template.png" class="template-img" alt="Modelo do cartão sem dizeres">
+      <div class="overlay cartao-sem-overlay"></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
