@@ -122,13 +122,19 @@ textarea { resize: vertical; min-height: 92px; }
 .sticky-actions {
   position: sticky;
   bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: stretch;
+  width: 100%;
   background: rgba(255, 253, 249, .95);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px;
   box-shadow: 0 8px 22px rgba(66,42,32,.09);
-  justify-content: flex-end;
   z-index: 3;
+}
+.sticky-actions button {
+  width: 100%;
 }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
 .check-grid.one-column { grid-template-columns: 1fr; }
@@ -434,7 +440,7 @@ textarea { resize: vertical; min-height: 92px; }
   .brand { min-width: 0; }
   .tabs { justify-content: flex-start; }
   .grid-form, .compact-grid, .seller-manager { grid-template-columns: 1fr; }
-  .sticky-actions { justify-content: stretch; flex-direction: column; }
+  .sticky-actions { grid-template-columns: 1fr; }
   .sticky-actions button { width: 100%; }
   .field-offset-row { grid-template-columns: 1fr 84px 84px; }
   .config-preview-panel { position: static; }
