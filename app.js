@@ -414,7 +414,6 @@
       atualizarZoomPreviewModal();
     });
     atualizarBotaoInstalacao();
-    window.addEventListener('afterprint', limparModoImpressao);
   }
 
   function on(selector, eventName, handler) {
@@ -1177,42 +1176,54 @@
   }
 
   function imprimir(tipo) {
-  normalizarValorPedido();
-  sincronizarDiaSemanaComData(true);
-  renderInputs();
-  renderPreview();
-  limparModoImpressao();
+    normalizarValorPedido();
+    sincronizarDiaSemanaComData(true);
+    renderInputs();
+    renderPreview();
 
-  const printArea = $('#printArea');
-  if (printArea) printArea.setAttribute('aria-hidden', 'false');
+    prepararModoImpressao(tipo);
 
-  if (tipo === 'pedido') {
-    document.body.classList.add('print-pedido');
-  } else if (tipo === 'cartao-sem') {
-    document.body.classList.add('print-cartao-sem');
-  } else {
-    document.body.classList.add('print-cartao-com');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          window.focus();
+          window.print();
+        } catch (error) {
+          limparModoImpressao();
+          aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
+        }
+      });
+    });
   }
 
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      try {
-        window.focus();
-        window.print();
-      } catch (error) {
-        limparModoImpressao();
-        aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
-      }
+  function prepararModoImpressao(tipo) {
+    limparModoImpressao();
+
+    const printArea = $('#printArea');
+    if (printArea) printArea.setAttribute('aria-hidden', 'false');
+
+    let modo = 'cartao-com';
+    if (tipo === 'pedido') modo = 'pedido';
+    if (tipo === 'cartao-sem') modo = 'cartao-sem';
+
+    document.body.dataset.printMode = modo;
+    document.body.classList.add(`print-${modo}`);
+
+    const folha = $(`.print-area .print-sheet[data-preview-kind="${modo}"]`);
+    if (folha) folha.classList.add('print-active');
+  }
+
+  function limparModoImpressao() {
+    document.body.classList.remove('print-pedido', 'print-cartao-com', 'print-cartao-sem');
+    delete document.body.dataset.printMode;
+
+    $$('.print-area .print-sheet.print-active').forEach(sheet => {
+      sheet.classList.remove('print-active');
     });
-  });
-}
 
-function limparModoImpressao() {
-  document.body.classList.remove('print-pedido', 'print-cartao-com', 'print-cartao-sem');
-
-  const printArea = $('#printArea');
-  if (printArea) printArea.setAttribute('aria-hidden', 'true');
-}
+    const printArea = $('#printArea');
+    if (printArea) printArea.setAttribute('aria-hidden', 'true');
+  }
 
   function calcularFonteDizeres(texto, delta) {
     const len = (texto || '').replace(/\s+/g, ' ').trim().length;
