@@ -484,17 +484,87 @@ textarea { resize: vertical; min-height: 92px; }
 @page cartaoSemPage { size: 158mm 102.5mm; margin: 0; }
 
 @media print {
-  html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
-  .app-shell, .preview-modal, .toast { display: none !important; }
-  .print-area { display: block !important; margin: 0 !important; padding: 0 !important; }
-  .print-area .print-sheet { display: none !important; position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; box-shadow: none !important; overflow: hidden !important; background: transparent !important; }
-  .template-img { visibility: hidden !important; }
-  .field, .checkbox-mark { color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-area .print-sheet.print-active { display: block !important; }
-  .print-area .sheet-pedido.print-active { page: pedidoPage; width: 145mm !important; height: 206mm !important; }
-  .print-area .sheet-cartao-dizeres.print-active { page: cartaoDizeresPage; width: 145mm !important; height: 196mm !important; }
-  .print-area .sheet-cartao-sem.print-active { page: cartaoSemPage; width: 158mm !important; height: 102.5mm !important; }
-  body.print-pedido .print-area .sheet-pedido { display: block !important; page: pedidoPage; width: 145mm !important; height: 206mm !important; }
-  body.print-cartao-com .print-area .sheet-cartao-dizeres { display: block !important; page: cartaoDizeresPage; width: 145mm !important; height: 196mm !important; }
-  body.print-cartao-sem .print-area .sheet-cartao-sem { display: block !important; page: cartaoSemPage; width: 158mm !important; height: 102.5mm !important; }
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.print-pedido { width: 145mm !important; height: 206mm !important; }
+  body.print-cartao-com { width: 145mm !important; height: 196mm !important; }
+  body.print-cartao-sem { width: 158mm !important; height: 102.5mm !important; }
+
+  .app-shell,
+  .preview-modal,
+  .toast {
+    display: none !important;
+  }
+
+  .print-area {
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+  }
+
+  .print-area .print-sheet {
+    display: none !important;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    transform: none !important;
+    zoom: 1 !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-area .print-sheet.print-active {
+    display: block !important;
+  }
+
+  .template-img {
+    visibility: hidden !important;
+  }
+
+  .field,
+  .checkbox-mark {
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.print-pedido .print-area .sheet-pedido {
+    page: pedidoPage;
+    width: 145mm !important;
+    height: 206mm !important;
+  }
+
+  body.print-cartao-com .print-area .sheet-cartao-dizeres {
+    page: cartaoDizeresPage;
+    width: 145mm !important;
+    height: 196mm !important;
+  }
+
+  body.print-cartao-sem .print-area .sheet-cartao-sem {
+    page: cartaoSemPage;
+    width: 158mm !important;
+    height: 102.5mm !important;
+  }
 }

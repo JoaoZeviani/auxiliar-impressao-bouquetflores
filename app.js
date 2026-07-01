@@ -60,7 +60,7 @@
     },
     vendedores: ['Loja', 'WhatsApp'],
     ultimoVendedor: '',
-    calibragemPadraoVersao: 10,
+    calibragemPadraoVersao: 11,
     calibragem: {
       pedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       cartaoDizeres: { x: 0, y: 0 },
@@ -1180,7 +1180,6 @@
     sincronizarDiaSemanaComData(true);
     renderInputs();
     renderPreview();
-
     prepararModoImpressao(tipo);
 
     requestAnimationFrame(() => {
