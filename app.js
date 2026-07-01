@@ -60,6 +60,7 @@
     },
     vendedores: ['Loja', 'WhatsApp'],
     ultimoVendedor: '',
+    calibragemPadraoVersao: 10,
     calibragem: {
       pedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       cartaoDizeres: { x: 0, y: 0 },
@@ -68,7 +69,120 @@
       basePedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       baseCartaoDizeres: { x: 0, y: 0 },
       baseCartaoSemDizeres: { x: 0, y: 0 },
-      baseCampos: {}
+      baseCampos: {
+        "pedido": {
+                "entregarPara": {
+                        "x": -0.5,
+                        "y": -2
+                },
+                "endereco": {
+                        "x": -2,
+                        "y": -2
+                },
+                "bairro": {
+                        "x": 0,
+                        "y": -2
+                },
+                "telefone": {
+                        "x": 0,
+                        "y": -2
+                },
+                "pedido": {
+                        "x": 0,
+                        "y": 3
+                },
+                "dataDia": {
+                        "x": 0,
+                        "y": 0
+                },
+                "dataMes": {
+                        "x": -2,
+                        "y": 0
+                },
+                "dataAno": {
+                        "x": -6.5,
+                        "y": 0
+                },
+                "diaSemana": {
+                        "x": 0,
+                        "y": 0
+                },
+                "periodoEntrega": {
+                        "x": 0,
+                        "y": 0
+                },
+                "vendedor": {
+                        "x": 0,
+                        "y": 0
+                },
+                "valor": {
+                        "x": 0,
+                        "y": 0
+                },
+                "pagamentos": {
+                        "vemPagar": {
+                                "x": -2,
+                                "y": -0.5
+                        },
+                        "receber": {
+                                "x": -2,
+                                "y": -1
+                        },
+                        "cartao": {
+                                "x": -2,
+                                "y": -1
+                        },
+                        "pix": {
+                                "x": -2,
+                                "y": -1.5
+                        },
+                        "dinheiro": {
+                                "x": -2,
+                                "y": -2
+                        }
+                },
+                "cliente": {
+                        "x": -1,
+                        "y": -1
+                },
+                "foneCliente": {
+                        "x": 0,
+                        "y": -1.5
+                }
+        },
+        "cartao": {
+                "mensagem": {
+                        "x": 0,
+                        "y": 0
+                },
+                "destinatario": {
+                        "x": 0,
+                        "y": -1.5
+                },
+                "endereco": {
+                        "x": 0,
+                        "y": -1.5
+                },
+                "telefone": {
+                        "x": 0,
+                        "y": -1.5
+                }
+        },
+        "cartaoSem": {
+                "destinatario": {
+                        "x": 0,
+                        "y": -5
+                },
+                "endereco": {
+                        "x": 0,
+                        "y": 0
+                },
+                "telefone": {
+                        "x": 0,
+                        "y": -1
+                }
+        }
+}
     }
   };
 
@@ -112,7 +226,7 @@
   function carregarDados() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY_ANTIGO);
-      if (raw) state = mergeDeep(structuredCloneSafe(defaultState), JSON.parse(raw));
+      if (raw) state = JSON.parse(raw);
     } catch (error) {
       aviso('Não foi possível carregar os dados salvos. O programa abriu com dados limpos.');
     }
@@ -133,7 +247,12 @@
   }
 
   function normalizarState() {
+    const versaoCalibragemAnterior = state?.calibragemPadraoVersao;
     state = mergeDeep(structuredCloneSafe(defaultState), state || {});
+    if (versaoCalibragemAnterior !== defaultState.calibragemPadraoVersao) {
+      state.calibragem = structuredCloneSafe(defaultState.calibragem);
+      state.calibragemPadraoVersao = defaultState.calibragemPadraoVersao;
+    }
     if (!Array.isArray(state.vendedores)) state.vendedores = [];
     state.vendedores = [...new Set(state.vendedores.filter(Boolean).map(v => String(v).trim()))];
     if (!state.vendedores.length) state.vendedores = ['Loja'];
