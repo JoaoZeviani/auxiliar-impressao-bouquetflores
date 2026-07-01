@@ -1177,25 +1177,42 @@
   }
 
   function imprimir(tipo) {
-    normalizarValorPedido();
-    sincronizarDiaSemanaComData(true);
-    renderInputs();
-    renderPreview();
-    limparModoImpressao();
-    if (tipo === 'pedido') {
-      document.body.classList.add('print-pedido');
-    } else if (tipo === 'cartao-sem') {
-      document.body.classList.add('print-cartao-sem');
-    } else {
-      document.body.classList.add('print-cartao-com');
-    }
-    setTimeout(() => window.print(), 100);
-    setTimeout(limparModoImpressao, 1200);
+  normalizarValorPedido();
+  sincronizarDiaSemanaComData(true);
+  renderInputs();
+  renderPreview();
+  limparModoImpressao();
+
+  const printArea = $('#printArea');
+  if (printArea) printArea.setAttribute('aria-hidden', 'false');
+
+  if (tipo === 'pedido') {
+    document.body.classList.add('print-pedido');
+  } else if (tipo === 'cartao-sem') {
+    document.body.classList.add('print-cartao-sem');
+  } else {
+    document.body.classList.add('print-cartao-com');
   }
 
-  function limparModoImpressao() {
-    document.body.classList.remove('print-pedido', 'print-cartao-com', 'print-cartao-sem');
-  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        window.focus();
+        window.print();
+      } catch (error) {
+        limparModoImpressao();
+        aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
+      }
+    });
+  });
+}
+
+function limparModoImpressao() {
+  document.body.classList.remove('print-pedido', 'print-cartao-com', 'print-cartao-sem');
+
+  const printArea = $('#printArea');
+  if (printArea) printArea.setAttribute('aria-hidden', 'true');
+}
 
   function calcularFonteDizeres(texto, delta) {
     const len = (texto || '').replace(/\s+/g, ' ').trim().length;
