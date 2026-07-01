@@ -1,18 +1,18 @@
-# Android - Auxiliar de Impressão
+# Android e iPhone
 
-## O que usar
+Use a versão hospedada em HTTPS, por exemplo no GitHub Pages.
 
-Use como PWA. Não use `.bat`, porque Android não executa arquivo `.bat`.
+## Android
 
-## Como deixar com ícone
+1. Abra o site no Chrome.
+2. Toque em **Baixar aplicativo** ou use o menu do Chrome.
+3. Escolha **Instalar app** ou **Adicionar à tela inicial**.
 
-1. Hospede esta pasta em HTTPS, por exemplo no GitHub Pages.
-2. No Android, abra o link pelo Chrome.
-3. Use o botão **Instalar app** se ele aparecer.
-4. Se o botão não aparecer, abra o menu do Chrome e toque em **Adicionar à tela inicial** ou **Instalar app**.
+## iPhone
 
-Depois disso, o programa fica com ícone na tela inicial do celular.
+1. Abra o site no navegador.
+2. Toque em **Compartilhar**.
+3. Toque em **Adicionar à Tela de Início**.
+4. Abra pelo ícone criado.
 
-## Observação sobre impressão
-
-A versão Android serve para preencher, consultar e imprimir, mas a impressão física pode variar mais do que no Windows. Para papéis físicos com posição muito precisa, calibre usando o preview e faça testes reais na impressora.
+No Android e no iPhone, o programa salva dados localmente no navegador/aparelho.

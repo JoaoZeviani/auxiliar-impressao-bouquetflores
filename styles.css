@@ -440,6 +440,33 @@ textarea { resize: vertical; min-height: 92px; }
   .config-preview-panel { position: static; }
 }
 
+
+/* Preview modal ajustado para caber inteiro no celular */
+@media (max-width: 620px) {
+  .preview-modal {
+    padding: 8px;
+    align-items: stretch;
+  }
+  .preview-modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .preview-modal-header h2 { font-size: 18px; }
+  .preview-modal-header p { display: none; }
+  .modal-stage {
+    min-height: 0;
+    max-height: calc(100dvh - 128px);
+    padding: 8px;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-stage .print-sheet.preview-visible {
+    zoom: var(--modal-preview-zoom, 1);
+  }
+}
+
 @page pedidoPage { size: 145mm 206mm; margin: 0; }
 @page cartaoDizeresPage { size: 145mm 196mm; margin: 0; }
 @page cartaoSemPage { size: 158mm 102.5mm; margin: 0; }

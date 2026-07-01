@@ -259,14 +259,17 @@
     window.addEventListener('beforeinstallprompt', event => {
       event.preventDefault();
       deferredInstallPrompt = event;
-      const btn = $('#btnInstalarApp');
-      if (btn) btn.hidden = false;
+      atualizarBotaoInstalacao();
     });
     window.addEventListener('appinstalled', () => {
       deferredInstallPrompt = null;
-      const btn = $('#btnInstalarApp');
-      if (btn) btn.hidden = true;
+      atualizarBotaoInstalacao();
     });
+    window.addEventListener('resize', () => {
+      atualizarBotaoInstalacao();
+      atualizarZoomPreviewModal();
+    });
+    atualizarBotaoInstalacao();
     window.addEventListener('afterprint', limparModoImpressao);
   }
 
@@ -378,6 +381,7 @@
     renderCartaoDizeresOverlays();
     renderCartaoSemOverlays();
     atualizarVisibilidadePreview();
+    setTimeout(atualizarZoomPreviewModal, 0);
   }
 
   function aplicarCalibragem() {
@@ -515,6 +519,7 @@
     const modal = $('#previewModal');
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
+    setTimeout(atualizarZoomPreviewModal, 0);
   }
 
   function fecharPreviewModal() {
@@ -715,16 +720,101 @@
   }
 
 
-  async function instalarAppAndroid() {
-    if (!deferredInstallPrompt) {
-      aviso('No Android, abra este programa pelo Chrome em um endereço HTTPS e use “Instalar app” ou “Adicionar à tela inicial”.');
+  function detectarPlataforma() {
+    const ua = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isWindows = /Windows/i.test(ua) || /^Win/i.test(platform);
+    return { isAndroid, isIOS, isWindows };
+  }
+
+  function estaAbertoComoAplicativo() {
+    return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function atualizarBotaoInstalacao() {
+    const btn = $('#btnInstalarApp');
+    if (!btn) return;
+
+    if (estaAbertoComoAplicativo()) {
+      btn.hidden = true;
       return;
     }
-    deferredInstallPrompt.prompt();
-    try { await deferredInstallPrompt.userChoice; } catch (_) {}
-    deferredInstallPrompt = null;
-    const btn = $('#btnInstalarApp');
-    if (btn) btn.hidden = true;
+
+    const { isAndroid, isIOS, isWindows } = detectarPlataforma();
+
+    if (isAndroid) {
+      btn.textContent = 'Baixar aplicativo';
+      btn.hidden = false;
+      return;
+    }
+
+    if (isIOS) {
+      btn.textContent = 'Baixar aplicativo';
+      btn.hidden = false;
+      return;
+    }
+
+    if (isWindows) {
+      btn.textContent = 'Adicionar atalho à área de trabalho';
+      btn.hidden = false;
+      return;
+    }
+
+    btn.hidden = true;
+  }
+
+  async function instalarAppAndroid() {
+    if (estaAbertoComoAplicativo()) {
+      atualizarBotaoInstalacao();
+      return;
+    }
+
+    const { isAndroid, isIOS, isWindows } = detectarPlataforma();
+
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      try { await deferredInstallPrompt.userChoice; } catch (_) {}
+      deferredInstallPrompt = null;
+      atualizarBotaoInstalacao();
+      return;
+    }
+
+    if (isIOS) {
+      aviso('No iPhone, toque em Compartilhar e depois em “Adicionar à Tela de Início”. Depois abra pelo ícone criado.');
+      return;
+    }
+
+    if (isWindows) {
+      aviso('No Windows, use o menu do Chrome/Edge e escolha “Instalar app” ou “Apps > Instalar este site como aplicativo”.');
+      return;
+    }
+
+    if (isAndroid) {
+      aviso('No Android, abra pelo Chrome e use “Instalar app” ou “Adicionar à tela inicial”.');
+      return;
+    }
+  }
+
+  function atualizarZoomPreviewModal() {
+    const modal = $('#previewModal');
+    const root = $('#modalPreviewRoot');
+    if (!modal || !root) return;
+
+    root.style.setProperty('--modal-preview-zoom', '1');
+    if (modal.classList.contains('hidden') || window.innerWidth > 620) return;
+
+    const sheet = $('.print-sheet.preview-visible', root);
+    if (!sheet) return;
+
+    const stageRect = root.getBoundingClientRect();
+    const sheetWidth = sheet.offsetWidth || 1;
+    const sheetHeight = sheet.offsetHeight || 1;
+    const availableWidth = Math.max(120, stageRect.width - 8);
+    const availableHeight = Math.max(120, stageRect.height - 8);
+    const zoom = Math.max(0.35, Math.min(1, availableWidth / sheetWidth, availableHeight / sheetHeight));
+    root.style.setProperty('--modal-preview-zoom', zoom.toFixed(3));
   }
 
   function imprimir(tipo) {
