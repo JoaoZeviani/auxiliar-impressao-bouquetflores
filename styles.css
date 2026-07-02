@@ -481,9 +481,10 @@ textarea { resize: vertical; min-height: 92px; }
 }
 
 /*
-  Impressão em modo A4: o navegador/Android costuma ignorar papel customizado.
-  Por isso a página de impressão é A4 e a folha real do pedido/cartão fica
-  posicionada no topo e centralizada horizontalmente dentro do A4.
+  Impressão em modo A4 compatível com papel menor.
+  Alguns celulares/drivers imprimem A4 e reduzem o conteúdo para caber no papel
+  físico colocado na bandeja. Por isso a folha ativa é ampliada no CSS para que,
+  após essa redução da impressora, os campos voltem ao tamanho e posição reais.
 
   A folha ativa fica em position: fixed para não aumentar a altura do documento.
   Isso evita que Chrome/Android/driver arredondem a altura e criem uma segunda
@@ -540,12 +541,14 @@ textarea { resize: vertical; min-height: 92px; }
     display: none !important;
     position: fixed !important;
     top: 0 !important;
+    left: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
     background: transparent !important;
     transform: none !important;
+    transform-origin: top left !important;
     zoom: 1 !important;
     max-width: none !important;
     max-height: none !important;
@@ -575,20 +578,26 @@ textarea { resize: vertical; min-height: 92px; }
   }
 
   body.print-pedido .print-area .sheet-pedido {
-    left: 32.5mm !important;
+    left: 0.48mm !important;
+    top: 0 !important;
     width: 145mm !important;
     height: 206mm !important;
+    transform: scale(1.44175) !important;
   }
 
   body.print-cartao-com .print-area .sheet-cartao-dizeres {
-    left: 32.5mm !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 145mm !important;
     height: 196mm !important;
+    transform: scale(1.44828) !important;
   }
 
   body.print-cartao-sem .print-area .sheet-cartao-sem {
-    left: 26mm !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 158mm !important;
     height: 102.5mm !important;
+    transform: scale(1.32911) !important;
   }
 }
