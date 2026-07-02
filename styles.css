@@ -483,12 +483,13 @@ textarea { resize: vertical; min-height: 92px; }
 /*
   Impressão em modo A4: o navegador/Android costuma ignorar papel customizado.
   Por isso a página de impressão é A4 e a folha real do pedido/cartão fica
-  centralizada no topo dentro do A4, mantendo as medidas internas originais.
+  posicionada no topo e centralizada horizontalmente dentro do A4.
+
+  A folha ativa fica em position: fixed para não aumentar a altura do documento.
+  Isso evita que Chrome/Android/driver arredondem a altura e criem uma segunda
+  página em branco.
 */
 @page { size: A4 portrait; margin: 0; }
-@page pedidoPage { size: A4 portrait; margin: 0; }
-@page cartaoDizeresPage { size: A4 portrait; margin: 0; }
-@page cartaoSemPage { size: A4 portrait; margin: 0; }
 
 @media print {
   html,
@@ -496,16 +497,22 @@ textarea { resize: vertical; min-height: 92px; }
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 210mm !important;
+    height: 1mm !important;
     min-width: 0 !important;
-    overflow: visible !important;
+    min-height: 0 !important;
+    max-height: 1mm !important;
+    overflow: hidden !important;
   }
 
   body.print-pedido,
   body.print-cartao-com,
   body.print-cartao-sem {
     width: 210mm !important;
-    height: auto !important;
+    height: 1mm !important;
     min-height: 0 !important;
+    max-height: 1mm !important;
+    overflow: hidden !important;
   }
 
   .app-shell,
@@ -516,24 +523,24 @@ textarea { resize: vertical; min-height: 92px; }
 
   .print-area {
     display: block !important;
-    position: static !important;
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
-    height: auto !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
     min-height: 0 !important;
-    max-height: none !important;
-    overflow: hidden !important;
-    break-after: avoid !important;
-    page-break-after: avoid !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+    overflow: visible !important;
   }
 
   .print-area .print-sheet {
     display: none !important;
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    margin: 0 auto !important;
+    position: fixed !important;
+    top: 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
@@ -546,14 +553,14 @@ textarea { resize: vertical; min-height: 92px; }
     min-height: 0 !important;
     break-before: avoid !important;
     break-after: avoid !important;
+    break-inside: avoid !important;
     page-break-before: avoid !important;
     page-break-after: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .print-area .print-sheet.print-active {
     display: block !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
   }
 
   .template-img {
@@ -568,19 +575,19 @@ textarea { resize: vertical; min-height: 92px; }
   }
 
   body.print-pedido .print-area .sheet-pedido {
-    page: pedidoPage;
+    left: 32.5mm !important;
     width: 145mm !important;
     height: 206mm !important;
   }
 
   body.print-cartao-com .print-area .sheet-cartao-dizeres {
-    page: cartaoDizeresPage;
+    left: 32.5mm !important;
     width: 145mm !important;
     height: 196mm !important;
   }
 
   body.print-cartao-sem .print-area .sheet-cartao-sem {
-    page: cartaoSemPage;
+    left: 26mm !important;
     width: 158mm !important;
     height: 102.5mm !important;
   }
