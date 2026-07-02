@@ -480,9 +480,15 @@ textarea { resize: vertical; min-height: 92px; }
   }
 }
 
-@page pedidoPage { size: 145mm 206mm; margin: 0; }
-@page cartaoDizeresPage { size: 145mm 196mm; margin: 0; }
-@page cartaoSemPage { size: 158mm 102.5mm; margin: 0; }
+/*
+  Impressão em modo A4: o navegador/Android costuma ignorar papel customizado.
+  Por isso a página de impressão é A4 e a folha real do pedido/cartão fica
+  centralizada no topo dentro do A4, mantendo as medidas internas originais.
+*/
+@page { size: A4 portrait; margin: 0; }
+@page pedidoPage { size: A4 portrait; margin: 0; }
+@page cartaoDizeresPage { size: A4 portrait; margin: 0; }
+@page cartaoSemPage { size: A4 portrait; margin: 0; }
 
 @media print {
   html,
@@ -494,9 +500,12 @@ textarea { resize: vertical; min-height: 92px; }
     overflow: visible !important;
   }
 
-  body.print-pedido { width: 145mm !important; height: 206mm !important; }
-  body.print-cartao-com { width: 145mm !important; height: 196mm !important; }
-  body.print-cartao-sem { width: 158mm !important; height: 102.5mm !important; }
+  body.print-pedido,
+  body.print-cartao-com,
+  body.print-cartao-sem {
+    width: 210mm !important;
+    height: 297mm !important;
+  }
 
   .app-shell,
   .preview-modal,
@@ -509,8 +518,8 @@ textarea { resize: vertical; min-height: 92px; }
     position: static !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
+    width: 210mm !important;
+    height: 297mm !important;
     overflow: visible !important;
   }
 
@@ -519,7 +528,7 @@ textarea { resize: vertical; min-height: 92px; }
     position: relative !important;
     left: auto !important;
     top: auto !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
