@@ -16,6 +16,15 @@
   --cartao-dizeres-y: 0mm;
   --cartao-sem-x: 0mm;
   --cartao-sem-y: 0mm;
+  --print-pedido-x: 0mm;
+  --print-pedido-y: 0mm;
+  --print-pedido-scale: 1;
+  --print-cartao-dizeres-x: 0mm;
+  --print-cartao-dizeres-y: 0mm;
+  --print-cartao-dizeres-scale: 1;
+  --print-cartao-sem-x: 0mm;
+  --print-cartao-sem-y: 0mm;
+  --print-cartao-sem-scale: 1;
   --mensagem-font: 22pt;
   --mensagem-font-family: Georgia, 'Times New Roman', serif;
 }
@@ -327,6 +336,18 @@ textarea { resize: vertical; min-height: 92px; }
 .field-offset-row strong { font-size: 13px; color: #3c302d; }
 .field-offset-row label { font-size: 12px; }
 .field-offset-row input { padding: 7px; border-radius: 8px; }
+.print-calibration-list { display: grid; gap: 10px; }
+.print-calibration-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fffdf9;
+}
+.print-calibration-card strong { color: var(--rose-dark); font-size: 14px; }
+.calibration-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.calibration-grid input { padding: 8px; border-radius: 8px; }
 
 .preview-modal.hidden { display: none; }
 .preview-modal {
@@ -446,7 +467,7 @@ textarea { resize: vertical; min-height: 92px; }
   .topbar, .screen-title-row, .preview-modal-header { flex-direction: column; align-items: stretch; }
   .brand { min-width: 0; }
   .tabs { justify-content: flex-start; }
-  .grid-form, .compact-grid, .seller-manager { grid-template-columns: 1fr; }
+  .grid-form, .compact-grid, .seller-manager, .calibration-grid { grid-template-columns: 1fr; }
   .sticky-actions { grid-template-columns: 1fr; }
   .sticky-actions button { width: 100%; }
   .field-offset-row { grid-template-columns: 1fr 84px 84px; }
@@ -578,26 +599,26 @@ textarea { resize: vertical; min-height: 92px; }
   }
 
   body.print-pedido .print-area .sheet-pedido {
-    left: 0.48mm !important;
-    top: 0 !important;
+    left: calc(32.5mm + var(--print-pedido-x)) !important;
+    top: var(--print-pedido-y) !important;
     width: 145mm !important;
     height: 206mm !important;
-    transform: scale(1.44175) !important;
+    transform: scale(var(--print-pedido-scale)) !important;
   }
 
   body.print-cartao-com .print-area .sheet-cartao-dizeres {
-    left: 0 !important;
-    top: 0 !important;
+    left: calc(32.5mm + var(--print-cartao-dizeres-x)) !important;
+    top: var(--print-cartao-dizeres-y) !important;
     width: 145mm !important;
     height: 196mm !important;
-    transform: scale(1.44828) !important;
+    transform: scale(var(--print-cartao-dizeres-scale)) !important;
   }
 
   body.print-cartao-sem .print-area .sheet-cartao-sem {
-    left: 0 !important;
-    top: 0 !important;
+    left: calc(26mm + var(--print-cartao-sem-x)) !important;
+    top: var(--print-cartao-sem-y) !important;
     width: 158mm !important;
     height: 102.5mm !important;
-    transform: scale(1.32911) !important;
+    transform: scale(var(--print-cartao-sem-scale)) !important;
   }
 }

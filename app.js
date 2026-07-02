@@ -65,6 +65,11 @@
       pedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       cartaoDizeres: { x: 0, y: 0 },
       cartaoSemDizeres: { x: 0, y: 0 },
+      impressao: {
+        pedido: { x: 0, y: 0, escala: 100 },
+        cartaoDizeres: { x: 0, y: 0, escala: 100 },
+        cartaoSemDizeres: { x: 0, y: 0, escala: 100 }
+      },
       campos: {},
       basePedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       baseCartaoDizeres: { x: 0, y: 0 },
@@ -386,6 +391,7 @@
     on('#btnLimparTudo', 'click', limparTudo);
     on('#btnPreencherTeste', 'click', preencherTeste);
     on('#btnSalvarPosicao', 'click', salvarPosicaoAtual);
+    on('#btnResetarImpressao', 'click', resetarCalibragemImpressao);
     on('#btnPreviewPedido', 'click', () => abrirPreviewModal('pedido'));
     on('#btnPreviewCartao', 'click', () => abrirPreviewModal('cartao'));
     on('#showPedidoPreview', 'click', () => setConfigPreviewMode('pedido'));
@@ -548,11 +554,33 @@
     document.documentElement.style.setProperty('--cartao-sem-x', `${num(cartaoSemBase.x) + num(state.calibragem.cartaoSemDizeres.x)}mm`);
     document.documentElement.style.setProperty('--cartao-sem-y', `${num(cartaoSemBase.y) + num(state.calibragem.cartaoSemDizeres.y)}mm`);
 
+    aplicarCalibragemImpressao();
+
     const font = calcularFonteDizeres(state.cartao.mensagem, state.cartao.fontDelta);
     document.documentElement.style.setProperty('--mensagem-font', `${font}pt`);
     document.documentElement.style.setProperty('--mensagem-font-family', state.cartao.fontFamily || defaultState.cartao.fontFamily);
     const fonteAtual = $('#fonteAtual');
     if (fonteAtual) fonteAtual.textContent = `Fonte: ${font} pt`;
+  }
+
+
+  function aplicarCalibragemImpressao() {
+    const impressao = state.calibragem.impressao || {};
+    aplicarVariaveisImpressao('pedido', impressao.pedido || {});
+    aplicarVariaveisImpressao('cartao-dizeres', impressao.cartaoDizeres || {});
+    aplicarVariaveisImpressao('cartao-sem', impressao.cartaoSemDizeres || {});
+  }
+
+  function aplicarVariaveisImpressao(prefixo, ajustes) {
+    document.documentElement.style.setProperty(`--print-${prefixo}-x`, `${num(ajustes.x)}mm`);
+    document.documentElement.style.setProperty(`--print-${prefixo}-y`, `${num(ajustes.y)}mm`);
+    document.documentElement.style.setProperty(`--print-${prefixo}-scale`, String(calcularEscalaImpressao(ajustes.escala)));
+  }
+
+  function calcularEscalaImpressao(valor) {
+    const escala = Number(valor);
+    if (!Number.isFinite(escala) || escala <= 0) return 1;
+    return Math.max(0.5, Math.min(2, escala / 100));
   }
 
   function renderPedidoOverlays() {
@@ -1005,6 +1033,16 @@
     salvarDadosDebounced();
     renderTudo();
     aviso('Pedido teste preenchido.');
+  }
+
+
+  function resetarCalibragemImpressao() {
+    const ok = confirm('Resetar somente a calibragem de impressão A4? Os ajustes individuais dos campos serão mantidos.');
+    if (!ok) return;
+    state.calibragem.impressao = structuredCloneSafe(defaultState.calibragem.impressao);
+    salvarDadosDebounced();
+    renderTudo();
+    aviso('Calibragem de impressão resetada.');
   }
 
   function salvarPosicaoAtual() {
