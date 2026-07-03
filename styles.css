@@ -165,6 +165,47 @@ textarea { resize: vertical; min-height: 92px; }
 .segmented { display: grid; gap: 10px; }
 .font-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 #fonteAtual { color: var(--muted); font-size: 13px; }
+.photo-picker {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px dashed #d7c4b8;
+  border-radius: 12px;
+  background: #fffdf9;
+}
+.photo-picker p { margin: 2px 0 0; font-size: 13px; }
+.file-button {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--rose);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.file-button:hover { background: var(--rose-dark); }
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.photo-thumb {
+  width: min(180px, 100%);
+  max-height: 130px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 4px;
+}
+.photo-grayscale { filter: grayscale(1); }
 .seller-manager { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; margin-bottom: 14px; }
 .seller-list { display: grid; gap: 8px; }
 .seller-item {
@@ -239,6 +280,28 @@ textarea { resize: vertical; min-height: 92px; }
 .p-bairro { left: calc(24.0mm + var(--pedido-x)); top: calc(50.5mm + var(--pedido-y)); width: 110mm; height: 7mm; font-size: 11pt; }
 .p-telefone { left: calc(28.2mm + var(--pedido-x)); top: calc(58.1mm + var(--pedido-y)); width: 106mm; height: 7mm; font-size: 11pt; }
 .p-pedido { left: calc(15.0mm + var(--pedido-x)); top: calc(69.0mm + var(--pedido-y)); width: 83.0mm; height: 106.0mm; font-size: 13pt; line-height: 1.17; }
+.has-pedido-foto .p-pedido { height: 45mm; }
+.pedido-foto-frame {
+  position: absolute;
+  left: calc(15.5mm + var(--pedido-x));
+  top: calc(119mm + var(--pedido-y));
+  width: 81mm;
+  height: 54mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+}
+.pedido-foto-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.foto-pedido-pb .pedido-foto-img { filter: grayscale(1) contrast(1.08); }
+.foto-pedido-colorida .pedido-foto-img { filter: none; }
 .p-data-dia { left: calc(99.6mm + var(--pedido-x)); top: calc(73.2mm + var(--pedido-y)); width: 9.8mm; height: 6mm; font-size: 10.5pt; text-align: center; white-space: nowrap; }
 .p-data-mes { left: calc(110.8mm + var(--pedido-x)); top: calc(73.2mm + var(--pedido-y)); width: 9.8mm; height: 6mm; font-size: 10.5pt; text-align: center; white-space: nowrap; }
 .p-data-ano { left: calc(122.4mm + var(--pedido-x)); top: calc(73.2mm + var(--pedido-y)); width: 14.6mm; height: 6mm; font-size: 10.5pt; text-align: center; white-space: nowrap; }
@@ -575,7 +638,8 @@ textarea { resize: vertical; min-height: 92px; }
   }
 
   .field,
-  .checkbox-mark {
+  .checkbox-mark,
+  .pedido-foto-img {
     color: black !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

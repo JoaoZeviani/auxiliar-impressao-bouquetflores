@@ -18,7 +18,9 @@
       valor: '',
       pagamentos: [],
       cliente: '',
-      foneCliente: ''
+      foneCliente: '',
+      fotoDataUrl: '',
+      fotoNome: ''
     },
     cartao: {
       tipo: 'com',
@@ -31,6 +33,9 @@
     },
     vendedores: ['Loja', 'WhatsApp'],
     ultimoVendedor: '',
+    configuracoes: {
+      fotoPedidoColorida: false
+    },
     calibragemPadraoVersao: 12,
     calibragem: {
       impressao: {
@@ -232,6 +237,7 @@
     if (!state.vendedores.includes(state.pedido.vendedor)) state.vendedores.unshift(state.pedido.vendedor);
     if (!['com', 'sem'].includes(state.cartao.tipo)) state.cartao.tipo = 'com';
     if (!state.cartao.fontFamily) state.cartao.fontFamily = defaultState.cartao.fontFamily;
+    state.configuracoes.fotoPedidoColorida = Boolean(state.configuracoes.fotoPedidoColorida);
     if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = structuredCloneSafe(defaultState.calibragem.baseCampos);
     state.pedido.pagamentos = pagamentos.filter(p => (state.pedido.pagamentos || []).includes(p));
   }
@@ -303,6 +309,17 @@
     }
 
 
+    const fotoPedidoInput = $('#pedidoFotoInput');
+    if (fotoPedidoInput) {
+      fotoPedidoInput.addEventListener('change', event => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        carregarFotoPedido(file).finally(() => {
+          fotoPedidoInput.value = '';
+        });
+      });
+    }
+
     $$('[data-payment]').forEach(chk => {
       chk.addEventListener('change', () => {
         const value = chk.dataset.payment;
@@ -345,6 +362,8 @@
     on('#btnLimparCartao', 'click', limparTudo);
     on('#btnLimparTudo', 'click', limparTudo);
     on('#btnPreencherTeste', 'click', preencherTeste);
+    on('#btnRemoverFotoPedido', 'click', removerFotoPedido);
+    on('#btnAlternarCorFotoPedido', 'click', alternarCorFotoPedido);
     on('#btnPreviewPedido', 'click', () => abrirPreviewModal('pedido'));
     on('#btnPreviewCartao', 'click', () => abrirPreviewModal('cartao'));
     on('#showPedidoPreview', 'click', () => setConfigPreviewMode('pedido'));
@@ -390,6 +409,7 @@
     renderInputs();
     renderVendedores();
     renderCartaoTipo();
+    renderFotoPedidoControles();
     renderPreview();
   }
 
@@ -463,11 +483,35 @@
     if (fieldset) fieldset.style.display = state.cartao.tipo === 'com' ? '' : 'none';
   }
 
+  function renderFotoPedidoControles() {
+    const temFoto = Boolean(state.pedido.fotoDataUrl);
+    const resumo = $('#pedidoFotoResumo');
+    if (resumo) resumo.textContent = temFoto ? (state.pedido.fotoNome || 'Foto selecionada.') : 'Nenhuma foto selecionada.';
+
+    const thumb = $('#pedidoFotoThumb');
+    if (thumb) {
+      thumb.hidden = !temFoto;
+      thumb.src = temFoto ? state.pedido.fotoDataUrl : '';
+      thumb.classList.toggle('photo-grayscale', !state.configuracoes.fotoPedidoColorida);
+    }
+
+    const remover = $('#btnRemoverFotoPedido');
+    if (remover) remover.disabled = !temFoto;
+
+    const alternar = $('#btnAlternarCorFotoPedido');
+    if (alternar) {
+      alternar.textContent = state.configuracoes.fotoPedidoColorida
+        ? 'Foto do pedido: colorida'
+        : 'Foto do pedido: preto e branco';
+    }
+  }
+
   function renderPreview() {
     aplicarCalibragem();
     renderPedidoOverlays();
     renderCartaoDizeresOverlays();
     renderCartaoSemOverlays();
+    renderFotoPedidoControles();
     atualizarVisibilidadePreview();
     setTimeout(atualizarZoomPreviewModal, 0);
   }
@@ -520,11 +564,15 @@
     const data = splitDateParts(state.pedido.dataEntrega);
     $$('.pedido-overlay').forEach(root => {
       root.innerHTML = '';
+      root.classList.toggle('has-pedido-foto', Boolean(state.pedido.fotoDataUrl));
+      root.classList.toggle('foto-pedido-colorida', Boolean(state.configuracoes.fotoPedidoColorida));
+      root.classList.toggle('foto-pedido-pb', !state.configuracoes.fotoPedidoColorida);
       addField(root, 'p-entregar', state.pedido.entregarPara, 'pedido.entregarPara');
       addField(root, 'p-endereco', state.pedido.endereco, 'pedido.endereco');
       addField(root, 'p-bairro', state.pedido.bairro, 'pedido.bairro');
       addField(root, 'p-telefone', state.pedido.telefone, 'pedido.telefone');
       addField(root, 'p-pedido', state.pedido.pedido, 'pedido.pedido');
+      addFotoPedido(root);
       addField(root, 'p-data-dia nowrap', data.dia, 'pedido.dataDia');
       addField(root, 'p-data-mes nowrap', data.mes, 'pedido.dataMes');
       addField(root, 'p-data-ano nowrap', data.ano, 'pedido.dataAno');
@@ -564,6 +612,21 @@
       addField(root, 'cs-endereco', state.cartao.endereco, 'cartaoSem.endereco');
       addField(root, 'cs-telefone', state.cartao.telefone, 'cartaoSem.telefone');
     });
+  }
+
+  function addFotoPedido(root) {
+    if (!state.pedido.fotoDataUrl) return;
+
+    const frame = document.createElement('div');
+    frame.className = 'pedido-foto-frame';
+
+    const img = document.createElement('img');
+    img.className = 'pedido-foto-img';
+    img.src = state.pedido.fotoDataUrl;
+    img.alt = 'Foto do pedido';
+
+    frame.append(img);
+    root.append(frame);
   }
 
   function addField(root, className, text, offsetKey) {
@@ -896,6 +959,70 @@
     renderTudo();
   }
 
+  async function carregarFotoPedido(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      aviso('Selecione um arquivo de imagem válido.');
+      return;
+    }
+
+    try {
+      const dataUrl = await redimensionarImagemParaPedido(file);
+      state.pedido.fotoDataUrl = dataUrl;
+      state.pedido.fotoNome = file.name || 'Foto selecionada';
+      salvarDadosDebounced();
+      renderTudo();
+      aviso('Foto adicionada ao pedido.');
+    } catch (error) {
+      aviso('Não foi possível carregar a foto. Tente outra imagem.');
+    }
+  }
+
+  function removerFotoPedido() {
+    if (!state.pedido.fotoDataUrl) return;
+    state.pedido.fotoDataUrl = '';
+    state.pedido.fotoNome = '';
+    salvarDadosDebounced();
+    renderTudo();
+    aviso('Foto removida do pedido.');
+  }
+
+  function alternarCorFotoPedido() {
+    state.configuracoes.fotoPedidoColorida = !state.configuracoes.fotoPedidoColorida;
+    salvarDadosDebounced();
+    renderTudo();
+    aviso(state.configuracoes.fotoPedidoColorida ? 'Foto do pedido colorida.' : 'Foto do pedido em preto e branco.');
+  }
+
+  function redimensionarImagemParaPedido(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Falha ao ler imagem.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Falha ao abrir imagem.'));
+        img.onload = () => {
+          const max = 1000;
+          const scale = Math.min(1, max / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+          const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+          const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   function lembrarVendedor(nome) {
     state.ultimoVendedor = nome || '';
   }
@@ -924,12 +1051,14 @@
     const tipo = state.cartao.tipo;
     const fontFamily = state.cartao.fontFamily || defaultState.cartao.fontFamily;
     const fontDelta = Number(state.cartao.fontDelta) || 0;
+    const configuracoes = structuredCloneSafe(state.configuracoes || defaultState.configuracoes);
     state.pedido = structuredCloneSafe(defaultState.pedido);
     state.cartao = structuredCloneSafe(defaultState.cartao);
     state.pedido.vendedor = vendedor;
     state.cartao.tipo = tipo;
     state.cartao.fontFamily = fontFamily;
     state.cartao.fontDelta = fontDelta;
+    state.configuracoes = configuracoes;
     salvarDadosDebounced();
     renderTudo();
   }

@@ -93,6 +93,19 @@
             <label>Pedido
               <textarea data-bind="pedido.pedido" rows="8"></textarea>
             </label>
+            <div class="photo-picker top-gap">
+              <div>
+                <strong>Foto do pedido</strong>
+                <p id="pedidoFotoResumo">Nenhuma foto selecionada.</p>
+              </div>
+              <div class="button-row wrap">
+                <label class="file-button">Selecionar foto
+                  <input type="file" id="pedidoFotoInput" accept="image/*">
+                </label>
+                <button id="btnRemoverFotoPedido" type="button" class="secondary">Remover foto</button>
+              </div>
+              <img id="pedidoFotoThumb" class="photo-thumb" alt="Prévia da foto do pedido" hidden>
+            </div>
             <div class="grid-form compact-grid top-gap">
               <label>Valor
                 <input type="text" data-bind="pedido.valor" inputmode="decimal" autocomplete="off">
@@ -258,6 +271,12 @@
                 <input type="number" step="1" min="-8" max="8" data-bind-number="cartao.fontDelta">
               </label>
             </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Imagem do pedido</legend>
+            <p>Escolha se a foto adicionada ao pedido aparece em preto e branco ou colorida.</p>
+            <button id="btnAlternarCorFotoPedido" type="button">Foto do pedido: preto e branco</button>
           </fieldset>
 
             </div>
