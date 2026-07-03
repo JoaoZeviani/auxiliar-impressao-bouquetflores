@@ -633,7 +633,7 @@
       card.dataset.produtoIndex = String(index);
 
       const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
-      const fotoResumo = fotoSrc ? (produto.fotoNome || 'Foto selecionada') : 'Sem foto';
+      const fotoResumo = fotoSrc ? (produto.fotoUrl ? 'Catálogo' : 'Foto') : 'Sem foto';
       const podeRemover = state.pedido.produtos.length > 1 || produtoPossuiConteudo(produto);
       const inputFotoId = `produtoFoto-${produto.id || index}`;
 
@@ -973,7 +973,7 @@
     produto.nome = produtoCatalogo.nome || '';
     produto.preco = produtoCatalogo.preco ? formatarValorParaTela(produtoCatalogo.preco) : '';
     produto.fotoUrl = produtoCatalogo.imagemUrl || '';
-    produto.fotoNome = produto.fotoUrl ? 'Imagem do catálogo' : '';
+    produto.fotoNome = produto.fotoUrl ? 'Catálogo' : '';
 
     normalizarProdutosPedido();
     const ultimo = state.pedido.produtos[state.pedido.produtos.length - 1];
@@ -1056,7 +1056,7 @@
     produto.nome = produtoCatalogo.nome || produto.nome;
     produto.preco = formatarValorParaTela(produtoCatalogo.preco);
     produto.fotoUrl = produto.fotoDataUrl ? produto.fotoUrl : (produtoCatalogo.imagemUrl || '');
-    produto.fotoNome = produto.fotoNome || (produtoCatalogo.imagemUrl ? 'Imagem do catálogo' : '');
+    produto.fotoNome = produto.fotoNome || (produtoCatalogo.imagemUrl ? 'Catálogo' : '');
   }
 
   async function carregarCatalogoProdutos({ silencioso = false, origemAutomatica = false } = {}) {
@@ -1981,7 +1981,7 @@
     produto.nome = produtoCatalogo.nome || '';
     produto.preco = produtoCatalogo.preco ? formatarValorParaTela(produtoCatalogo.preco) : '';
     produto.fotoUrl = produtoCatalogo.imagemUrl || '';
-    produto.fotoNome = produto.fotoUrl ? 'Imagem do catálogo' : '';
+    produto.fotoNome = produto.fotoUrl ? 'Catálogo' : '';
     return produto;
   }
 
