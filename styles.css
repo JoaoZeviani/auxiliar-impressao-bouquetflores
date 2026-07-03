@@ -959,3 +959,48 @@ textarea { resize: vertical; min-height: 92px; }
     height: 50px;
   }
 }
+
+
+/* Ajustes v37: valores monetários alinhados em flush right e erro Supabase mais claro */
+.pedido-produtos {
+  width: 78mm;
+}
+
+.pedido-produto-item {
+  width: 100%;
+}
+
+.pedido-produto-info {
+  min-width: 0;
+  width: 100%;
+}
+
+.pedido-produto-linha {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 22mm !important;
+  column-gap: 1mm !important;
+  align-items: start;
+  width: 100%;
+}
+
+.pedido-produto-linha strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pedido-produto-preco,
+.pedido-produto-linha span {
+  display: block;
+  width: 22mm;
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.p-valor {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}

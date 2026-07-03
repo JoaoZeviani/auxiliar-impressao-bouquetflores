@@ -992,7 +992,11 @@
   }
 
   function limitarTextoErro(texto) {
-    return String(texto || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    const limpo = String(texto || '').replace(/\s+/g, ' ').trim();
+    if (/42501|permission denied|GRANT SELECT/i.test(limpo)) {
+      return 'permissão negada na tabela produtos. No Supabase, rode: GRANT USAGE ON SCHEMA public TO anon; GRANT SELECT ON TABLE public.produtos TO anon;';
+    }
+    return limpo.slice(0, 220);
   }
 
   function restaurarConfiguracaoCatalogoSupabase() {
@@ -1171,6 +1175,7 @@
       const preco = parseMoeda(produto.preco);
       if (preco !== null && preco > 0) {
         const precoEl = document.createElement('span');
+        precoEl.className = 'pedido-produto-preco';
         precoEl.textContent = formatarValorParaTela(produto.preco);
         linha.append(precoEl);
       }
