@@ -1268,6 +1268,7 @@
 
       const preco = parseMoeda(produto.preco);
       if (preco !== null && preco > 0) {
+        item.classList.add('pedido-produto-com-preco');
         linha.classList.add('pedido-produto-linha-com-preco');
         const precoEl = document.createElement('span');
         precoEl.className = 'pedido-produto-preco';
