@@ -4,35 +4,6 @@
   const STORAGE_KEY_ANTIGO = 'auxiliar-impressao-bouquet-flores-v1';
   const pagamentos = ['Vem pagar', 'Receber', 'Cartão', 'Pix', 'Dinheiro'];
 
-  const camposAjustaveis = [
-    { key: 'pedido.entregarPara', label: 'Pedido - Entregar para' },
-    { key: 'pedido.endereco', label: 'Pedido - Endereço' },
-    { key: 'pedido.bairro', label: 'Pedido - Bairro' },
-    { key: 'pedido.telefone', label: 'Pedido - Telefone' },
-    { key: 'pedido.pedido', label: 'Pedido - Campo pedido' },
-    { key: 'pedido.dataDia', label: 'Pedido - Data dia' },
-    { key: 'pedido.dataMes', label: 'Pedido - Data mês' },
-    { key: 'pedido.dataAno', label: 'Pedido - Data ano' },
-    { key: 'pedido.diaSemana', label: 'Pedido - Dia da semana' },
-    { key: 'pedido.periodoEntrega', label: 'Pedido - Período entrega' },
-    { key: 'pedido.vendedor', label: 'Pedido - Vendedor' },
-    { key: 'pedido.valor', label: 'Pedido - Valor' },
-    { key: 'pedido.pagamentos.vemPagar', label: 'Pedido - Tick Vem pagar' },
-    { key: 'pedido.pagamentos.receber', label: 'Pedido - Tick Receber' },
-    { key: 'pedido.pagamentos.cartao', label: 'Pedido - Tick Cartão' },
-    { key: 'pedido.pagamentos.pix', label: 'Pedido - Tick Pix' },
-    { key: 'pedido.pagamentos.dinheiro', label: 'Pedido - Tick Dinheiro' },
-    { key: 'pedido.cliente', label: 'Pedido - Cliente' },
-    { key: 'pedido.foneCliente', label: 'Pedido - Fone do cliente' },
-    { key: 'cartao.mensagem', label: 'Cartão com dizeres - Mensagem' },
-    { key: 'cartao.destinatario', label: 'Cartão com dizeres - Destinatário' },
-    { key: 'cartao.endereco', label: 'Cartão com dizeres - Endereço' },
-    { key: 'cartao.telefone', label: 'Cartão com dizeres - Telefone' },
-    { key: 'cartaoSem.destinatario', label: 'Cartão sem dizeres - Destinatário' },
-    { key: 'cartaoSem.endereco', label: 'Cartão sem dizeres - Endereço' },
-    { key: 'cartaoSem.telefone', label: 'Cartão sem dizeres - Telefone' }
-  ];
-
   const defaultState = {
     pedido: {
       entregarPara: '',
@@ -60,17 +31,13 @@
     },
     vendedores: ['Loja', 'WhatsApp'],
     ultimoVendedor: '',
-    calibragemPadraoVersao: 11,
+    calibragemPadraoVersao: 12,
     calibragem: {
-      pedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
-      cartaoDizeres: { x: 0, y: 0 },
-      cartaoSemDizeres: { x: 0, y: 0 },
       impressao: {
-        pedido: { x: 0, y: 0, escala: 100 },
+        pedido: { x: 0.5, y: -0.5, escala: 100 },
         cartaoDizeres: { x: 0, y: 0, escala: 100 },
         cartaoSemDizeres: { x: 0, y: 0, escala: 100 }
       },
-      campos: {},
       basePedido: { x: 0, y: 0, tickX: 0, tickY: 0 },
       baseCartaoDizeres: { x: 0, y: 0 },
       baseCartaoSemDizeres: { x: 0, y: 0 },
@@ -265,8 +232,7 @@
     if (!state.vendedores.includes(state.pedido.vendedor)) state.vendedores.unshift(state.pedido.vendedor);
     if (!['com', 'sem'].includes(state.cartao.tipo)) state.cartao.tipo = 'com';
     if (!state.cartao.fontFamily) state.cartao.fontFamily = defaultState.cartao.fontFamily;
-    if (!state.calibragem.campos || typeof state.calibragem.campos !== 'object') state.calibragem.campos = {};
-    if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = {};
+    if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = structuredCloneSafe(defaultState.calibragem.baseCampos);
     state.pedido.pagamentos = pagamentos.filter(p => (state.pedido.pagamentos || []).includes(p));
   }
 
@@ -336,17 +302,6 @@
       });
     }
 
-    const calibragemCampos = $('#calibragemCampos');
-    if (calibragemCampos) {
-      calibragemCampos.addEventListener('input', event => {
-        const input = event.target.closest('[data-field-offset]');
-        if (!input) return;
-        const value = Number(String(input.value).replace(',', '.')) || 0;
-        setByPath(state, input.dataset.fieldOffset, value);
-        salvarDadosDebounced();
-        renderPreview();
-      });
-    }
 
     $$('[data-payment]').forEach(chk => {
       chk.addEventListener('change', () => {
@@ -390,8 +345,6 @@
     on('#btnLimparCartao', 'click', limparTudo);
     on('#btnLimparTudo', 'click', limparTudo);
     on('#btnPreencherTeste', 'click', preencherTeste);
-    on('#btnSalvarPosicao', 'click', salvarPosicaoAtual);
-    on('#btnResetarImpressao', 'click', resetarCalibragemImpressao);
     on('#btnPreviewPedido', 'click', () => abrirPreviewModal('pedido'));
     on('#btnPreviewCartao', 'click', () => abrirPreviewModal('cartao'));
     on('#showPedidoPreview', 'click', () => setConfigPreviewMode('pedido'));
@@ -434,7 +387,6 @@
   }
 
   function renderTudo() {
-    renderCalibragemCampos();
     renderInputs();
     renderVendedores();
     renderCartaoTipo();
@@ -506,26 +458,6 @@
     });
   }
 
-  function renderCalibragemCampos() {
-    const root = $('#calibragemCampos');
-    if (!root) return;
-    root.innerHTML = camposAjustaveis.map(campo => {
-      const basePath = `calibragem.campos.${campo.key}`;
-      const x = getByPath(state, `${basePath}.x`) ?? 0;
-      const y = getByPath(state, `${basePath}.y`) ?? 0;
-      return `
-        <div class="field-offset-row">
-          <strong>${escapeHtml(campo.label)}</strong>
-          <label>X mm
-            <input type="number" step="0.5" value="${escapeHtml(x)}" data-field-offset="${basePath}.x">
-          </label>
-          <label>Y mm
-            <input type="number" step="0.5" value="${escapeHtml(y)}" data-field-offset="${basePath}.y">
-          </label>
-        </div>`;
-    }).join('');
-  }
-
   function renderCartaoTipo() {
     const fieldset = $('#fieldsetDizeres');
     if (fieldset) fieldset.style.display = state.cartao.tipo === 'com' ? '' : 'none';
@@ -541,18 +473,19 @@
   }
 
   function aplicarCalibragem() {
-    const pedidoBase = state.calibragem.basePedido || {};
-    const cartaoDizeresBase = state.calibragem.baseCartaoDizeres || {};
-    const cartaoSemBase = state.calibragem.baseCartaoSemDizeres || {};
+    const calibragemFixa = defaultState.calibragem;
+    const pedidoBase = calibragemFixa.basePedido || {};
+    const cartaoDizeresBase = calibragemFixa.baseCartaoDizeres || {};
+    const cartaoSemBase = calibragemFixa.baseCartaoSemDizeres || {};
 
-    document.documentElement.style.setProperty('--pedido-x', `${num(pedidoBase.x) + num(state.calibragem.pedido.x)}mm`);
-    document.documentElement.style.setProperty('--pedido-y', `${num(pedidoBase.y) + num(state.calibragem.pedido.y)}mm`);
-    document.documentElement.style.setProperty('--pedido-tick-x', `${num(pedidoBase.tickX) + num(state.calibragem.pedido.tickX)}mm`);
-    document.documentElement.style.setProperty('--pedido-tick-y', `${num(pedidoBase.tickY) + num(state.calibragem.pedido.tickY)}mm`);
-    document.documentElement.style.setProperty('--cartao-dizeres-x', `${num(cartaoDizeresBase.x) + num(state.calibragem.cartaoDizeres.x)}mm`);
-    document.documentElement.style.setProperty('--cartao-dizeres-y', `${num(cartaoDizeresBase.y) + num(state.calibragem.cartaoDizeres.y)}mm`);
-    document.documentElement.style.setProperty('--cartao-sem-x', `${num(cartaoSemBase.x) + num(state.calibragem.cartaoSemDizeres.x)}mm`);
-    document.documentElement.style.setProperty('--cartao-sem-y', `${num(cartaoSemBase.y) + num(state.calibragem.cartaoSemDizeres.y)}mm`);
+    document.documentElement.style.setProperty('--pedido-x', `${num(pedidoBase.x)}mm`);
+    document.documentElement.style.setProperty('--pedido-y', `${num(pedidoBase.y)}mm`);
+    document.documentElement.style.setProperty('--pedido-tick-x', `${num(pedidoBase.tickX)}mm`);
+    document.documentElement.style.setProperty('--pedido-tick-y', `${num(pedidoBase.tickY)}mm`);
+    document.documentElement.style.setProperty('--cartao-dizeres-x', `${num(cartaoDizeresBase.x)}mm`);
+    document.documentElement.style.setProperty('--cartao-dizeres-y', `${num(cartaoDizeresBase.y)}mm`);
+    document.documentElement.style.setProperty('--cartao-sem-x', `${num(cartaoSemBase.x)}mm`);
+    document.documentElement.style.setProperty('--cartao-sem-y', `${num(cartaoSemBase.y)}mm`);
 
     aplicarCalibragemImpressao();
 
@@ -565,7 +498,7 @@
 
 
   function aplicarCalibragemImpressao() {
-    const impressao = state.calibragem.impressao || {};
+    const impressao = defaultState.calibragem.impressao || {};
     aplicarVariaveisImpressao('pedido', impressao.pedido || {});
     aplicarVariaveisImpressao('cartao-dizeres', impressao.cartaoDizeres || {});
     aplicarVariaveisImpressao('cartao-sem', impressao.cartaoSemDizeres || {});
@@ -649,8 +582,8 @@
 
   function getOffset(offsetKey) {
     return {
-      x: num(getByPath(state, `calibragem.baseCampos.${offsetKey}.x`)) + num(getByPath(state, `calibragem.campos.${offsetKey}.x`)),
-      y: num(getByPath(state, `calibragem.baseCampos.${offsetKey}.y`)) + num(getByPath(state, `calibragem.campos.${offsetKey}.y`))
+      x: num(getByPath(defaultState, `calibragem.baseCampos.${offsetKey}.x`)),
+      y: num(getByPath(defaultState, `calibragem.baseCampos.${offsetKey}.y`))
     };
   }
 
@@ -1033,60 +966,6 @@
     salvarDadosDebounced();
     renderTudo();
     aviso('Pedido teste preenchido.');
-  }
-
-
-  function resetarCalibragemImpressao() {
-    const ok = confirm('Resetar somente a calibragem de impressão A4? Os ajustes individuais dos campos serão mantidos.');
-    if (!ok) return;
-    state.calibragem.impressao = structuredCloneSafe(defaultState.calibragem.impressao);
-    salvarDadosDebounced();
-    renderTudo();
-    aviso('Calibragem de impressão resetada.');
-  }
-
-  function salvarPosicaoAtual() {
-    const ok = confirm('Salvar a posição atual como novo zero? Os campos continuarão no mesmo lugar, mas os valores de ajuste voltarão para 0.');
-    if (!ok) return;
-
-    acumularCalibragem('basePedido', 'pedido', ['x', 'y', 'tickX', 'tickY']);
-    acumularCalibragem('baseCartaoDizeres', 'cartaoDizeres', ['x', 'y']);
-    acumularCalibragem('baseCartaoSemDizeres', 'cartaoSemDizeres', ['x', 'y']);
-    acumularCamposIndividuais();
-
-    salvarDadosDebounced();
-    renderTudo();
-    aviso('Posição salva. Os ajustes agora voltaram para zero.');
-  }
-
-  function acumularCalibragem(baseKey, ajusteKey, props) {
-    state.calibragem[baseKey] = state.calibragem[baseKey] || {};
-    state.calibragem[ajusteKey] = state.calibragem[ajusteKey] || {};
-    props.forEach(prop => {
-      state.calibragem[baseKey][prop] = arredondarMm(num(state.calibragem[baseKey][prop]) + num(state.calibragem[ajusteKey][prop]));
-      state.calibragem[ajusteKey][prop] = 0;
-    });
-  }
-
-  function acumularCamposIndividuais() {
-    state.calibragem.baseCampos = state.calibragem.baseCampos || {};
-    state.calibragem.campos = state.calibragem.campos || {};
-
-    camposAjustaveis.forEach(campo => {
-      const ajustePath = `calibragem.campos.${campo.key}`;
-      const basePath = `calibragem.baseCampos.${campo.key}`;
-      const x = num(getByPath(state, `${ajustePath}.x`));
-      const y = num(getByPath(state, `${ajustePath}.y`));
-      if (!x && !y) return;
-      setByPath(state, `${basePath}.x`, arredondarMm(num(getByPath(state, `${basePath}.x`)) + x));
-      setByPath(state, `${basePath}.y`, arredondarMm(num(getByPath(state, `${basePath}.y`)) + y));
-      setByPath(state, `${ajustePath}.x`, 0);
-      setByPath(state, `${ajustePath}.y`, 0);
-    });
-  }
-
-  function arredondarMm(value) {
-    return Math.round(num(value) * 1000) / 1000;
   }
 
 

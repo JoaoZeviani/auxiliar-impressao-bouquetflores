@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auxiliar-impressao-bouquet-flores-v30';
+const CACHE_NAME = 'auxiliar-impressao-bouquet-flores-v31';
 const ASSETS = [
   './',
   './index.html',

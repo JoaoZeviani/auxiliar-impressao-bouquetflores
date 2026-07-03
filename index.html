@@ -260,114 +260,11 @@
             </div>
           </fieldset>
 
-          <fieldset>
-            <legend>Impressão A4 — calibragem manual</legend>
-            <p>Use quando a impressão física sair deslocada ou fora do papel. X move tudo para direita/esquerda, Y move para baixo/cima e escala aumenta ou diminui tudo. O preview normal não muda; estes ajustes aparecem apenas ao imprimir.</p>
-            <div class="print-calibration-list">
-              <div class="print-calibration-card">
-                <strong>Pedido</strong>
-                <div class="grid-form calibration-grid">
-                  <label>X impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.pedido.x">
-                  </label>
-                  <label>Y impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.pedido.y">
-                  </label>
-                  <label>Escala (%)
-                    <input type="number" step="1" min="50" max="200" data-bind-number="calibragem.impressao.pedido.escala">
-                  </label>
-                </div>
-              </div>
-              <div class="print-calibration-card">
-                <strong>Cartão com dizeres</strong>
-                <div class="grid-form calibration-grid">
-                  <label>X impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.cartaoDizeres.x">
-                  </label>
-                  <label>Y impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.cartaoDizeres.y">
-                  </label>
-                  <label>Escala (%)
-                    <input type="number" step="1" min="50" max="200" data-bind-number="calibragem.impressao.cartaoDizeres.escala">
-                  </label>
-                </div>
-              </div>
-              <div class="print-calibration-card">
-                <strong>Cartão sem dizeres</strong>
-                <div class="grid-form calibration-grid">
-                  <label>X impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.cartaoSemDizeres.x">
-                  </label>
-                  <label>Y impressão (mm)
-                    <input type="number" step="0.5" data-bind-number="calibragem.impressao.cartaoSemDizeres.y">
-                  </label>
-                  <label>Escala (%)
-                    <input type="number" step="1" min="50" max="200" data-bind-number="calibragem.impressao.cartaoSemDizeres.escala">
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="button-row wrap top-gap">
-              <button id="btnResetarImpressao" type="button" class="secondary">Resetar calibragem de impressão</button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Pedido — deslocamento geral</legend>
-            <div class="grid-form compact-grid">
-              <label>Deslocamento X (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.pedido.x">
-              </label>
-              <label>Deslocamento Y (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.pedido.y">
-              </label>
-              <label>Ticks X (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.pedido.tickX">
-              </label>
-              <label>Ticks Y (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.pedido.tickY">
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Cartão com dizeres</legend>
-            <div class="grid-form compact-grid">
-              <label>Deslocamento X (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.cartaoDizeres.x">
-              </label>
-              <label>Deslocamento Y (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.cartaoDizeres.y">
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Cartão sem dizeres</legend>
-            <div class="grid-form compact-grid">
-              <label>Deslocamento X (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.cartaoSemDizeres.x">
-              </label>
-              <label>Deslocamento Y (mm)
-                <input type="number" step="0.5" data-bind-number="calibragem.cartaoSemDizeres.y">
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Mover campos individualmente</legend>
-            <p>Use estes ajustes se apenas um campo estiver fora do lugar. X move para direita/esquerda; Y move para baixo/cima.</p>
-            <div class="button-row wrap top-gap">
-              <button id="btnSalvarPosicao" type="button">Salvar posição</button>
-            </div>
-            <div class="field-offset-list top-gap" id="calibragemCampos"></div>
-          </fieldset>
-
             </div>
             <aside class="config-preview-aside">
               <fieldset class="config-preview-panel">
-                <legend>Preview para ajuste</legend>
-                <p>Este preview fica sempre aberto ao lado das configurações para facilitar a calibração dos campos.</p>
+                <legend>Preview de conferência</legend>
+                <p>Este preview fica sempre aberto ao lado das configurações para conferir pedido e cartão.</p>
                 <div class="preview-toggle">
                   <button id="showPedidoPreview" type="button" class="active">Pedido</button>
                   <button id="showCartaoPreview" type="button">Cartão</button>
