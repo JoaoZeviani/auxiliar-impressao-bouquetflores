@@ -1004,3 +1004,18 @@ textarea { resize: vertical; min-height: 92px; }
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
+
+/* Ajustes v38: placeholders nos campos de produto para economizar espaço */
+.product-placeholder-field {
+  display: block;
+}
+
+.product-placeholder-field input::placeholder {
+  color: #9b8d84;
+  opacity: 1;
+}
+
+.product-card-grid input[data-produto-campo="nome"],
+.product-card-grid input[data-produto-campo="preco"] {
+  min-height: 36px;
+}

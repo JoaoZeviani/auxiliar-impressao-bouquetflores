@@ -582,11 +582,11 @@
 
       card.innerHTML = `
         <div class="product-card-grid">
-          <label class="product-name-field">Nome do produto
-            <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
+          <label class="product-name-field product-placeholder-field">
+            <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" placeholder="Nome do produto" aria-label="Nome do produto" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
           </label>
-          <label class="product-price-field">Preço
-            <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off">
+          <label class="product-price-field product-placeholder-field">
+            <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off" placeholder="Preço" aria-label="Preço">
           </label>
           <div class="product-photo-compact">
             <span class="product-photo-name">${escapeHtml(fotoResumo)}</span>
