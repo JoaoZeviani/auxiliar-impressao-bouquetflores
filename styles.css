@@ -1166,3 +1166,48 @@ textarea { resize: vertical; min-height: 92px; }
     font-size: 10.5px !important;
   }
 }
+
+
+/* Ajustes v41: nome à esquerda e valor de cada produto preso à direita */
+.pedido-produto-info {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.pedido-produto-linha {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 1.16em;
+  box-sizing: border-box !important;
+}
+
+.pedido-produto-linha-com-preco {
+  padding-right: 22mm !important;
+}
+
+.pedido-produto-linha strong {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  text-align: left !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pedido-produto-preco {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  display: block !important;
+  width: 21mm !important;
+  min-width: 21mm !important;
+  max-width: 21mm !important;
+  margin-left: 0 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}

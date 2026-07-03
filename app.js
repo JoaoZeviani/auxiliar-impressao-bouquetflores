@@ -1268,6 +1268,7 @@
 
       const preco = parseMoeda(produto.preco);
       if (preco !== null && preco > 0) {
+        linha.classList.add('pedido-produto-linha-com-preco');
         const precoEl = document.createElement('span');
         precoEl.className = 'pedido-produto-preco';
         precoEl.textContent = formatarValorParaTela(produto.preco);
