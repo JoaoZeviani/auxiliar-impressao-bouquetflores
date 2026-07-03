@@ -6,6 +6,7 @@
   const DEFAULT_CATALOGO_SUPABASE_URL = 'https://kixsrmftboxdjlgqdbdw.supabase.co';
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
+  const CATALOGO_REFRESH_VISIVEL_MS = 1200;
 
 
   const defaultState = {
@@ -182,6 +183,13 @@
   let modalPreviewMode = 'pedido';
   let deferredInstallPrompt = null;
   let proximoFocoProdutoPorTab = null;
+  let catalogoRefreshDebounceTimer = null;
+  let catalogoAtualizando = false;
+  let catalogoRefreshPendente = false;
+  let catalogoRealtimeClient = null;
+  let catalogoRealtimeChannel = null;
+  let catalogoRealtimeConfigKey = '';
+  let catalogoSyncEventsBound = false;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -193,7 +201,8 @@
     normalizarState();
     bindEvents();
     renderTudo();
-    carregarCatalogoProdutos({ silencioso: true });
+    carregarCatalogoProdutos({ silencioso: true, origemAutomatica: true });
+    iniciarAtualizacaoAutomaticaCatalogo();
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('service-worker.js').catch(() => {});
@@ -291,7 +300,10 @@
         if (path === 'pedido.vendedor') lembrarVendedor(input.value);
         if (path === 'pedido.dataEntrega') aplicarDataEntregaDigitada(true);
         if (path === 'configuracoes.taxaEntrega') atualizarTaxaEntregaDoPedido(true);
-        if (path === 'configuracoes.catalogoSupabaseUrl' || path === 'configuracoes.catalogoSupabaseAnonKey') limparProdutosCatalogoCarregados();
+        if (path === 'configuracoes.catalogoSupabaseUrl' || path === 'configuracoes.catalogoSupabaseAnonKey') {
+          limparProdutosCatalogoCarregados();
+          reiniciarAtualizacaoAutomaticaCatalogo();
+        }
         salvarDadosDebounced();
         renderVendedores();
         renderInputs();
@@ -827,10 +839,13 @@
     }
   }
 
-  function abrirSeletorCatalogoProdutos() {
-    const produtos = Array.isArray(state.catalogo.produtos) ? state.catalogo.produtos : [];
-    if (!produtos.length) {
-      aviso('Atualize o catálogo antes de adicionar um produto.');
+  async function abrirSeletorCatalogoProdutos() {
+    if (!temProdutosCatalogo()) {
+      await carregarCatalogoProdutos({ silencioso: false });
+    }
+
+    if (!temProdutosCatalogo()) {
+      aviso('Nenhum produto carregado do catálogo. Confira a configuração do Supabase.');
       return;
     }
 
@@ -853,6 +868,7 @@
     const lista = $('.catalog-picker-list', overlay);
 
     function renderLista() {
+      const produtos = produtosCatalogoAtuais();
       const termo = normalizarTextoBusca(inputBusca.value);
       const filtrados = produtos
         .filter(produto => !termo || normalizarTextoBusca([produto.nome, produto.descricao, produto.categoria].filter(Boolean).join(' ')).includes(termo))
@@ -884,7 +900,7 @@
 
       const item = event.target.closest('[data-catalogo-index]');
       if (!item) return;
-      const produto = produtos[Number(item.dataset.catalogoIndex)];
+      const produto = produtosCatalogoAtuais()[Number(item.dataset.catalogoIndex)];
       if (!produto) return;
       adicionarProdutoDoCatalogoAoPedido(produto);
       fecharSeletorCatalogoProdutos();
@@ -998,36 +1014,164 @@
     produto.fotoNome = produto.fotoNome || (produtoCatalogo.imagemUrl ? 'Imagem do catálogo' : '');
   }
 
-  async function carregarCatalogoProdutos({ silencioso = false } = {}) {
+  async function carregarCatalogoProdutos({ silencioso = false, origemAutomatica = false } = {}) {
     const url = String(state.configuracoes.catalogoSupabaseUrl || '').trim().replace(/\/$/, '');
     const key = String(state.configuracoes.catalogoSupabaseAnonKey || '').trim();
     if (!url || !key) {
       state.catalogo.status = 'Informe a URL e a chave pública do Supabase para carregar o catálogo.';
       renderCatalogoControles();
-      return;
+      return false;
     }
 
+    if (catalogoAtualizando) {
+      catalogoRefreshPendente = true;
+      return false;
+    }
+
+    catalogoAtualizando = true;
+
     try {
-      state.catalogo.status = 'Carregando produtos do catálogo...';
-      renderCatalogoControles();
+      if (!silencioso) {
+        state.catalogo.status = 'Carregando produtos do catálogo...';
+        renderCatalogoControles();
+      }
 
       const { rows, origem } = await buscarProdutosCatalogoSupabase(url, key);
-      state.catalogo.produtos = (Array.isArray(rows) ? rows : [])
+      const produtos = (Array.isArray(rows) ? rows : [])
         .map(mapearProdutoCatalogo)
         .filter(produto => produto.nome && produto.disponivel);
+
+      state.catalogo.produtos = produtos;
       state.catalogo.carregadoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-      state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.${origem ? ` Fonte: ${origem}.` : ''}`;
+      state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.${origem ? ` Fonte: ${origem}.` : ''}${origemAutomatica ? ' Atualização automática ativa.' : ''}`;
       salvarDadosDebounced();
       renderCatalogoControles();
-      renderProdutosPedidoForm({ manterFoco: true });
+      atualizarSeletorCatalogoAberto();
       if (!silencioso) aviso('Catálogo carregado.');
+      return true;
     } catch (error) {
       console.error(error);
       const detalhe = error?.message ? ` Detalhe: ${error.message}` : '';
       state.catalogo.status = `Não foi possível carregar o catálogo.${detalhe}`;
       renderCatalogoControles();
       if (!silencioso) aviso('Não foi possível carregar o catálogo.');
+      return false;
+    } finally {
+      catalogoAtualizando = false;
+      if (catalogoRefreshPendente) {
+        catalogoRefreshPendente = false;
+        programarAtualizacaoCatalogoAutomatica(CATALOGO_REFRESH_VISIVEL_MS);
+      }
     }
+  }
+
+  function temProdutosCatalogo() {
+    return produtosCatalogoAtuais().length > 0;
+  }
+
+  function produtosCatalogoAtuais() {
+    return Array.isArray(state.catalogo.produtos) ? state.catalogo.produtos : [];
+  }
+
+  function iniciarAtualizacaoAutomaticaCatalogo() {
+    pararAtualizacaoAutomaticaCatalogo();
+    vincularEventosAtualizacaoCatalogo();
+
+    if (!temConfiguracaoCatalogoSupabase()) return;
+
+    iniciarRealtimeCatalogoProdutos();
+  }
+
+  function reiniciarAtualizacaoAutomaticaCatalogo() {
+    pararRealtimeCatalogoProdutos();
+    iniciarAtualizacaoAutomaticaCatalogo();
+    programarAtualizacaoCatalogoAutomatica(CATALOGO_REFRESH_VISIVEL_MS);
+  }
+
+  function pararAtualizacaoAutomaticaCatalogo() {
+    if (catalogoRefreshDebounceTimer) {
+      clearTimeout(catalogoRefreshDebounceTimer);
+      catalogoRefreshDebounceTimer = null;
+    }
+  }
+
+  function vincularEventosAtualizacaoCatalogo() {
+    if (catalogoSyncEventsBound) return;
+    catalogoSyncEventsBound = true;
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) programarAtualizacaoCatalogoAutomatica(CATALOGO_REFRESH_VISIVEL_MS);
+    });
+
+    window.addEventListener('online', () => {
+      programarAtualizacaoCatalogoAutomatica(CATALOGO_REFRESH_VISIVEL_MS);
+    });
+  }
+
+  function programarAtualizacaoCatalogoAutomatica(delay = 0) {
+    if (!temConfiguracaoCatalogoSupabase()) return;
+    if (catalogoRefreshDebounceTimer) clearTimeout(catalogoRefreshDebounceTimer);
+
+    catalogoRefreshDebounceTimer = window.setTimeout(() => {
+      catalogoRefreshDebounceTimer = null;
+      carregarCatalogoProdutos({ silencioso: true, origemAutomatica: true });
+    }, Math.max(0, delay));
+  }
+
+  function temConfiguracaoCatalogoSupabase() {
+    return Boolean(String(state.configuracoes.catalogoSupabaseUrl || '').trim() && String(state.configuracoes.catalogoSupabaseAnonKey || '').trim());
+  }
+
+  async function iniciarRealtimeCatalogoProdutos() {
+    const url = String(state.configuracoes.catalogoSupabaseUrl || '').trim().replace(/\/$/, '');
+    const key = String(state.configuracoes.catalogoSupabaseAnonKey || '').trim();
+    const configKey = `${url}|${key}`;
+    if (!url || !key || catalogoRealtimeConfigKey === configKey) return;
+
+    pararRealtimeCatalogoProdutos();
+    catalogoRealtimeConfigKey = configKey;
+
+    try {
+      const modulo = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const createClient = modulo.createClient;
+      if (typeof createClient !== 'function') throw new Error('Supabase JS indisponível');
+
+      catalogoRealtimeClient = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        realtime: { params: { eventsPerSecond: 2 } }
+      });
+
+      catalogoRealtimeChannel = catalogoRealtimeClient
+        .channel('auxiliar-impressao-catalogo-produtos')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, () => {
+          programarAtualizacaoCatalogoAutomatica(500);
+        })
+        .subscribe(status => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            programarAtualizacaoCatalogoAutomatica(CATALOGO_REFRESH_VISIVEL_MS);
+          }
+        });
+    } catch (error) {
+      console.warn('Realtime do catálogo indisponível. O catálogo será atualizado ao abrir, ao voltar para a tela, ao reconectar ou pelo botão manual.', error);
+      catalogoRealtimeClient = null;
+      catalogoRealtimeChannel = null;
+      catalogoRealtimeConfigKey = '';
+    }
+  }
+
+  function pararRealtimeCatalogoProdutos() {
+    if (catalogoRealtimeClient && catalogoRealtimeChannel) {
+      catalogoRealtimeClient.removeChannel(catalogoRealtimeChannel).catch?.(() => {});
+    }
+    catalogoRealtimeClient = null;
+    catalogoRealtimeChannel = null;
+    catalogoRealtimeConfigKey = '';
+  }
+
+  function atualizarSeletorCatalogoAberto() {
+    const busca = $('.catalog-picker-overlay .catalog-picker-search');
+    if (!busca) return;
+    busca.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   async function buscarProdutosCatalogoSupabase(url, key) {
@@ -1069,7 +1213,11 @@
       const response = await fetch(endpoint, {
         method: 'GET',
         signal: controller.signal,
-        headers
+        cache: 'no-store',
+        headers: {
+          ...headers,
+          'Cache-Control': 'no-cache'
+        }
       });
 
       if (!response.ok) {
