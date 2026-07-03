@@ -1265,21 +1265,19 @@
       const nome = document.createElement('strong');
       nome.textContent = produto.nome || '';
       linha.append(nome);
+      info.append(linha);
+
+      item.append(info);
 
       const preco = parseMoeda(produto.preco);
       if (preco !== null && preco > 0) {
         item.classList.add('pedido-produto-com-preco');
-        linha.classList.add('pedido-produto-linha-com-preco');
         const precoEl = document.createElement('span');
         precoEl.className = 'pedido-produto-preco';
         precoEl.textContent = formatarValorParaTela(produto.preco);
-        linha.append(precoEl);
+        item.append(precoEl);
       }
 
-      info.append(linha);
-
-
-      item.append(info);
       container.append(item);
     });
 

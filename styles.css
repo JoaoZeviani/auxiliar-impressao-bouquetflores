@@ -1232,3 +1232,90 @@ textarea { resize: vertical; min-height: 92px; }
   background: #fff !important;
   box-sizing: border-box !important;
 }
+
+/* Ajustes v44: alinhamento definitivo dos preços dos produtos no pedido
+   Estrutura final: foto opcional | nome à esquerda | preço no limite direito da área de produtos. */
+.pedido-produtos {
+  width: 78mm !important;
+  box-sizing: border-box !important;
+}
+
+.pedido-produto-item,
+.pedido-produto-item.pedido-produto-com-preco,
+.pedido-produto-item.pedido-produto-sem-foto,
+.pedido-produto-item.pedido-produto-sem-foto.pedido-produto-com-preco {
+  position: relative !important;
+  display: grid !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  column-gap: 2mm !important;
+  row-gap: 0 !important;
+  align-items: start !important;
+  padding-right: 0 !important;
+}
+
+.pedido-produto-item.pedido-produto-com-preco:not(.pedido-produto-sem-foto) {
+  grid-template-columns: auto minmax(0, 1fr) 23mm !important;
+}
+
+.pedido-produto-item.pedido-produto-sem-foto.pedido-produto-com-preco {
+  grid-template-columns: minmax(0, 1fr) 23mm !important;
+}
+
+.pedido-produto-item:not(.pedido-produto-com-preco):not(.pedido-produto-sem-foto) {
+  grid-template-columns: auto minmax(0, 1fr) !important;
+}
+
+.pedido-produto-item.pedido-produto-sem-foto:not(.pedido-produto-com-preco) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.pedido-produto-info,
+.pedido-produto-com-preco .pedido-produto-info {
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  padding-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.pedido-produto-linha,
+.pedido-produto-linha-com-preco {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.pedido-produto-linha strong {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pedido-produto-preco,
+.pedido-produto-linha span.pedido-produto-preco {
+  position: static !important;
+  display: block !important;
+  grid-column: auto !important;
+  justify-self: end !important;
+  align-self: start !important;
+  width: 23mm !important;
+  min-width: 23mm !important;
+  max-width: 23mm !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  font-size: 8.4pt !important;
+  line-height: 1.12 !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
+}
