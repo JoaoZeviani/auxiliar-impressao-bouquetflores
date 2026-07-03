@@ -320,8 +320,9 @@
     if (!state.cartao.fontFamily) state.cartao.fontFamily = defaultState.cartao.fontFamily;
     state.configuracoes.fotoPedidoColorida = Boolean(state.configuracoes.fotoPedidoColorida);
     state.configuracoes.taxaEntrega = state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA;
-    state.configuracoes.catalogoSupabaseUrl = state.configuracoes.catalogoSupabaseUrl || DEFAULT_CATALOGO_SUPABASE_URL;
-    state.configuracoes.catalogoSupabaseAnonKey = state.configuracoes.catalogoSupabaseAnonKey || DEFAULT_CATALOGO_SUPABASE_ANON_KEY;
+    // A configuração do catálogo é fixa no app para evitar erro por ajustes antigos salvos nos dispositivos.
+    state.configuracoes.catalogoSupabaseUrl = DEFAULT_CATALOGO_SUPABASE_URL;
+    state.configuracoes.catalogoSupabaseAnonKey = DEFAULT_CATALOGO_SUPABASE_ANON_KEY;
     if (!state.catalogo || typeof state.catalogo !== 'object') state.catalogo = structuredCloneSafe(defaultState.catalogo);
     if (!Array.isArray(state.catalogo.produtos)) state.catalogo.produtos = [];
     if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = structuredCloneSafe(defaultState.calibragem.baseCampos);
@@ -431,8 +432,6 @@
 
     on('#btnAdicionarProdutoPedido', 'click', abrirSeletorCatalogoProdutos);
     on('#btnAdicionarTaxaEntrega', 'click', adicionarTaxaEntregaPedido);
-    on('#btnAtualizarCatalogoProdutos', 'click', () => carregarCatalogoProdutos({ silencioso: false }));
-    on('#btnRestaurarCatalogoSupabase', 'click', restaurarConfiguracaoCatalogoSupabase);
 
     $$('[data-payment]').forEach(chk => {
       chk.addEventListener('change', () => {
@@ -1287,15 +1286,6 @@
     return limpo.slice(0, 220);
   }
 
-  function restaurarConfiguracaoCatalogoSupabase() {
-    state.configuracoes.catalogoSupabaseUrl = DEFAULT_CATALOGO_SUPABASE_URL;
-    state.configuracoes.catalogoSupabaseAnonKey = DEFAULT_CATALOGO_SUPABASE_ANON_KEY;
-    limparProdutosCatalogoCarregados();
-    salvarDadosDebounced();
-    renderInputs();
-    renderCatalogoControles();
-    aviso('Configuração padrão do catálogo restaurada.');
-  }
 
   function mapearProdutoCatalogo(row = {}) {
     const disponibilidade = row.disponivel ?? row.disponibilidade ?? row.ativo ?? true;
