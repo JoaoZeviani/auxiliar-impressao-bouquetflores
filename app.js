@@ -359,7 +359,7 @@
       produtosLista.addEventListener('keydown', handleProdutoPedidoKeydown);
     }
 
-    on('#btnAdicionarProdutoPedido', 'click', adicionarProdutoPedidoManual);
+    on('#btnAdicionarProdutoPedido', 'click', abrirSeletorCatalogoProdutos);
     on('#btnAdicionarTaxaEntrega', 'click', adicionarTaxaEntregaPedido);
     on('#btnAtualizarCatalogoProdutos', 'click', () => carregarCatalogoProdutos({ silencioso: false }));
     on('#btnRestaurarCatalogoSupabase', 'click', restaurarConfiguracaoCatalogoSupabase);
@@ -827,13 +827,107 @@
     }
   }
 
-  function adicionarProdutoPedidoManual() {
-    normalizarProdutosPedido();
-    if (produtoPossuiConteudo(state.pedido.produtos[state.pedido.produtos.length - 1])) {
-      state.pedido.produtos.push(produtoPedidoVazio());
+  function abrirSeletorCatalogoProdutos() {
+    const produtos = Array.isArray(state.catalogo.produtos) ? state.catalogo.produtos : [];
+    if (!produtos.length) {
+      aviso('Atualize o catálogo antes de adicionar um produto.');
+      return;
     }
+
+    fecharSeletorCatalogoProdutos();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'catalog-picker-overlay';
+    overlay.innerHTML = `
+      <div class="catalog-picker" role="dialog" aria-modal="true" aria-labelledby="catalogPickerTitle">
+        <div class="catalog-picker-header">
+          <strong id="catalogPickerTitle">Adicionar do catálogo</strong>
+          <button type="button" class="secondary small-button" data-catalog-picker-close>Fechar</button>
+        </div>
+        <input type="search" class="catalog-picker-search" placeholder="Buscar produto" aria-label="Buscar produto no catálogo" autocomplete="off">
+        <div class="catalog-picker-list" role="listbox"></div>
+      </div>
+    `;
+
+    const inputBusca = $('.catalog-picker-search', overlay);
+    const lista = $('.catalog-picker-list', overlay);
+
+    function renderLista() {
+      const termo = normalizarTextoBusca(inputBusca.value);
+      const filtrados = produtos
+        .filter(produto => !termo || normalizarTextoBusca([produto.nome, produto.descricao, produto.categoria].filter(Boolean).join(' ')).includes(termo))
+        .slice(0, 80);
+
+      lista.innerHTML = filtrados.length
+        ? filtrados.map(produto => {
+            const index = produtos.indexOf(produto);
+            const preco = produto.preco ? formatarValorParaTela(produto.preco) : '';
+            const imagem = produto.imagemUrl ? `<img src="${escapeAttr(produto.imagemUrl)}" alt="">` : '<span class="catalog-picker-no-photo">Sem foto</span>';
+            return `
+              <button type="button" class="catalog-picker-item" data-catalogo-index="${index}" role="option">
+                <span class="catalog-picker-thumb">${imagem}</span>
+                <span class="catalog-picker-info">
+                  <strong>${escapeHtml(produto.nome || 'Produto sem nome')}</strong>
+                  ${preco ? `<span>${escapeHtml(preco)}</span>` : ''}
+                </span>
+              </button>
+            `;
+          }).join('')
+        : '<p class="catalog-picker-empty">Nenhum produto encontrado.</p>';
+    }
+
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay || event.target.closest('[data-catalog-picker-close]')) {
+        fecharSeletorCatalogoProdutos();
+        return;
+      }
+
+      const item = event.target.closest('[data-catalogo-index]');
+      if (!item) return;
+      const produto = produtos[Number(item.dataset.catalogoIndex)];
+      if (!produto) return;
+      adicionarProdutoDoCatalogoAoPedido(produto);
+      fecharSeletorCatalogoProdutos();
+    });
+
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') fecharSeletorCatalogoProdutos();
+    });
+
+    inputBusca.addEventListener('input', renderLista);
+    document.body.append(overlay);
+    renderLista();
+    requestAnimationFrame(() => inputBusca.focus());
+  }
+
+  function fecharSeletorCatalogoProdutos() {
+    $$('.catalog-picker-overlay').forEach(overlay => overlay.remove());
+  }
+
+  function adicionarProdutoDoCatalogoAoPedido(produtoCatalogo) {
+    const produto = produtoPedidoVazio();
+    produto.catalogoId = produtoCatalogo.id || '';
+    produto.nome = produtoCatalogo.nome || '';
+    produto.preco = produtoCatalogo.preco ? formatarValorParaTela(produtoCatalogo.preco) : '';
+    produto.fotoUrl = produtoCatalogo.imagemUrl || '';
+    produto.fotoNome = produto.fotoUrl ? 'Imagem do catálogo' : '';
+
+    normalizarProdutosPedido();
+    const ultimo = state.pedido.produtos[state.pedido.produtos.length - 1];
+    if (ultimo && !produtoPossuiConteudo(ultimo)) state.pedido.produtos.pop();
+
+    const taxaIndex = state.pedido.produtos.findIndex(item => item.ehTaxaEntrega);
+    if (taxaIndex >= 0) {
+      state.pedido.produtos.splice(taxaIndex, 0, produto);
+    } else {
+      state.pedido.produtos.push(produto);
+    }
+
+    state.pedido.produtos.push(produtoPedidoVazio());
+    recalcularValorPedido();
     salvarDadosDebounced();
-    renderProdutosPedidoForm({ manterFoco: true });
+    renderTudo();
+    aviso('Produto adicionado do catálogo.');
   }
 
   function adicionarTaxaEntregaPedido() {
