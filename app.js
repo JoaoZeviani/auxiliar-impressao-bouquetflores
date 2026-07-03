@@ -181,6 +181,7 @@
   let configPreviewMode = 'pedido';
   let modalPreviewMode = 'pedido';
   let deferredInstallPrompt = null;
+  let proximoFocoProdutoPorTab = null;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -280,7 +281,7 @@
         if (path === 'configuracoes.catalogoSupabaseUrl' || path === 'configuracoes.catalogoSupabaseAnonKey') limparProdutosCatalogoCarregados();
         salvarDadosDebounced();
         renderCartaoTipo();
-        renderProdutosPedidoForm();
+        renderProdutosPedidoForm({ manterFoco: true });
         renderCatalogoControles();
         renderPreview();
       });
@@ -294,7 +295,7 @@
         salvarDadosDebounced();
         renderVendedores();
         renderInputs();
-        renderProdutosPedidoForm();
+        renderProdutosPedidoForm({ manterFoco: true });
         renderCatalogoControles();
         renderPreview();
       });
@@ -355,6 +356,7 @@
       produtosLista.addEventListener('input', handleProdutoPedidoInput);
       produtosLista.addEventListener('change', handleProdutoPedidoChange);
       produtosLista.addEventListener('click', handleProdutoPedidoClick);
+      produtosLista.addEventListener('keydown', handleProdutoPedidoKeydown);
     }
 
     on('#btnAdicionarProdutoPedido', 'click', adicionarProdutoPedidoManual);
@@ -560,9 +562,10 @@
     });
   }
 
-  function renderProdutosPedidoForm() {
+  function renderProdutosPedidoForm(options = {}) {
     const lista = $('#pedidoProdutosLista');
     if (!lista) return;
+    const focoAnterior = options.manterFoco ? obterFocoAtualProduto() : null;
     normalizarProdutosPedido();
 
     lista.innerHTML = '';
@@ -572,7 +575,7 @@
       card.dataset.produtoIndex = String(index);
 
       const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
-      const fotoResumo = fotoSrc ? (produto.fotoNome || 'Foto selecionada.') : 'Nenhuma foto selecionada.';
+      const fotoResumo = fotoSrc ? (produto.fotoNome || 'Foto selecionada') : 'Sem foto';
       const podeRemover = state.pedido.produtos.length > 1 || produtoPossuiConteudo(produto);
       const inputFotoId = `produtoFoto-${produto.id || index}`;
       const titulo = produto.ehTaxaEntrega ? 'Taxa de entrega' : `Produto ${index + 1}`;
@@ -580,31 +583,26 @@
       card.innerHTML = `
         <div class="order-product-title-row">
           <strong>${escapeHtml(titulo)}</strong>
-          <button type="button" class="secondary small-button" data-produto-action="remover" ${podeRemover ? '' : 'disabled'}>Remover</button>
         </div>
-        <div class="grid-form compact-grid">
-          <label>Nome do produto <span class="required-dot">*</span>
+        <div class="product-card-grid">
+          <label class="product-name-field">Nome do produto
             <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
           </label>
-          <label>Preço
+          <label class="product-price-field">Preço
             <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off">
           </label>
-        </div>
-        <label class="top-gap">Observação
-          <textarea rows="2" data-produto-campo="observacao">${escapeHtml(produto.observacao)}</textarea>
-        </label>
-        <div class="photo-picker product-photo-picker top-gap">
-          <div>
-            <strong>Foto do produto</strong>
-            <p>${escapeHtml(fotoResumo)}</p>
-          </div>
-          <div class="button-row wrap">
-            <label class="file-button">Selecionar foto
+          <label class="product-note-field">Observação
+            <textarea rows="1" data-produto-campo="observacao">${escapeHtml(produto.observacao)}</textarea>
+          </label>
+          <div class="product-photo-compact">
+            <span class="product-photo-name">${escapeHtml(fotoResumo)}</span>
+            ${fotoSrc ? `<img src="${escapeAttr(fotoSrc)}" class="photo-thumb ${state.configuracoes.fotoPedidoColorida ? '' : 'photo-grayscale'}" alt="Prévia da foto do produto">` : ''}
+            <label class="file-button small-file-button">Foto
               <input type="file" id="${inputFotoId}" data-produto-foto accept="image/*" ${produto.ehTaxaEntrega ? 'disabled' : ''}>
             </label>
-            <button type="button" class="secondary" data-produto-action="remover-foto" ${fotoSrc ? '' : 'disabled'}>Remover foto</button>
+            <button type="button" class="secondary small-button" data-produto-action="remover-foto" ${fotoSrc ? '' : 'disabled'}>Remover foto</button>
+            <button type="button" class="secondary small-button" data-produto-action="remover" ${podeRemover ? '' : 'disabled'}>Remover produto</button>
           </div>
-          ${fotoSrc ? `<img src="${escapeAttr(fotoSrc)}" class="photo-thumb ${state.configuracoes.fotoPedidoColorida ? '' : 'photo-grayscale'}" alt="Prévia da foto do produto">` : ''}
         </div>
       `;
       lista.append(card);
@@ -615,6 +613,61 @@
       btnTaxa.disabled = pedidoTemTaxaEntrega();
       btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Taxa de entrega adicionada' : 'Adicionar taxa de entrega';
     }
+
+    const focoViaTab = proximoFocoProdutoPorTab;
+    proximoFocoProdutoPorTab = null;
+    const focoParaRestaurar = focoViaTab?.sairDaLista ? null : (focoViaTab || focoAnterior);
+    if (focoParaRestaurar) restaurarFocoProduto(focoParaRestaurar);
+  }
+
+  function handleProdutoPedidoKeydown(event) {
+    if (event.key !== 'Tab') return;
+    proximoFocoProdutoPorTab = obterProximoFocoProduto(event.target, event.shiftKey ? -1 : 1) || { sairDaLista: true };
+  }
+
+  function obterProximoFocoProduto(elementoAtual, direcao) {
+    const lista = $('#pedidoProdutosLista');
+    if (!lista) return null;
+    const focaveis = $$('[data-produto-campo], [data-produto-foto], [data-produto-action]', lista)
+      .filter(el => !el.disabled && el.type !== 'hidden');
+    const index = focaveis.indexOf(elementoAtual);
+    if (index < 0) return null;
+    const proximo = focaveis[index + direcao];
+    return proximo ? descreverFocoProduto(proximo) : null;
+  }
+
+  function descreverFocoProduto(elemento) {
+    const card = elemento?.closest?.('[data-produto-index]');
+    if (!card) return null;
+    const index = Number(card.dataset.produtoIndex);
+    if (!Number.isFinite(index)) return null;
+    if (elemento.dataset?.produtoCampo) return { index, tipo: 'campo', valor: elemento.dataset.produtoCampo };
+    if (elemento.matches?.('[data-produto-foto]')) return { index, tipo: 'foto' };
+    if (elemento.dataset?.produtoAction) return { index, tipo: 'acao', valor: elemento.dataset.produtoAction };
+    return null;
+  }
+
+  function obterFocoAtualProduto() {
+    const active = document.activeElement;
+    const card = active?.closest?.('[data-produto-index]');
+    if (!card) return null;
+    const index = Number(card.dataset.produtoIndex);
+    if (!Number.isFinite(index)) return null;
+
+    return descreverFocoProduto(active);
+  }
+
+  function restaurarFocoProduto(foco) {
+    requestAnimationFrame(() => {
+      const card = $(`[data-produto-index="${foco.index}"]`) || $(`[data-produto-index="${Math.max(0, foco.index - 1)}"]`);
+      if (!card) return;
+      let seletor = '';
+      if (foco.tipo === 'campo') seletor = `[data-produto-campo="${foco.valor}"]`;
+      if (foco.tipo === 'foto') seletor = '[data-produto-foto]';
+      if (foco.tipo === 'acao') seletor = `[data-produto-action="${foco.valor}"]`;
+      const el = seletor ? $(seletor, card) : null;
+      if (el && !el.disabled) el.focus({ preventScroll: true });
+    });
   }
 
 
@@ -730,7 +783,7 @@
       normalizarProdutosPedido();
       recalcularValorPedido();
       salvarDadosDebounced();
-      renderProdutosPedidoForm();
+      renderProdutosPedidoForm({ manterFoco: true });
       renderInputs();
       renderPreview();
       return;
@@ -740,7 +793,7 @@
       produto.preco = formatarValorParaTela(produto.preco);
       recalcularValorPedido();
       salvarDadosDebounced();
-      renderProdutosPedidoForm();
+      renderProdutosPedidoForm({ manterFoco: true });
       renderInputs();
       renderPreview();
       return;
@@ -787,7 +840,7 @@
       state.pedido.produtos.push(produtoPedidoVazio());
     }
     salvarDadosDebounced();
-    renderProdutosPedidoForm();
+    renderProdutosPedidoForm({ manterFoco: true });
   }
 
   function adicionarTaxaEntregaPedido() {
@@ -873,9 +926,9 @@
       state.catalogo.status = 'Carregando produtos do catálogo...';
       renderCatalogoControles();
 
-      const endpoint = `${url}/rest/v1/produtos?select=id,nome,preco,descricao,imagem_url,disponivel&disponivel=eq.true&order=nome.asc`;
+      const endpoint = `${url}/rest/v1/produtos?select=*&order=nome.asc`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(endpoint, {
         method: 'GET',
         signal: controller.signal,
@@ -887,28 +940,39 @@
       });
       clearTimeout(timeout);
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status} ${detail}`.trim());
+      }
+
       const rows = await response.json();
-      state.catalogo.produtos = (Array.isArray(rows) ? rows : []).map(row => ({
-        id: String(row.id || ''),
-        nome: String(row.nome || ''),
-        preco: row.preco ?? '',
-        descricao: String(row.descricao || ''),
-        imagemUrl: String(row.imagem_url || ''),
-        disponivel: row.disponivel !== false
-      })).filter(produto => produto.nome);
+      state.catalogo.produtos = (Array.isArray(rows) ? rows : [])
+        .map(mapearProdutoCatalogo)
+        .filter(produto => produto.nome && produto.disponivel);
       state.catalogo.carregadoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
       state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.`;
       salvarDadosDebounced();
       renderCatalogoControles();
-      renderProdutosPedidoForm();
+      renderProdutosPedidoForm({ manterFoco: true });
       if (!silencioso) aviso('Catálogo carregado.');
     } catch (error) {
       console.error(error);
-      state.catalogo.status = 'Não foi possível carregar o catálogo. Verifique a configuração e a política de leitura do Supabase.';
+      state.catalogo.status = 'Não foi possível carregar o catálogo. Confira a URL, a chave pública e a política SELECT da tabela produtos no Supabase.';
       renderCatalogoControles();
       if (!silencioso) aviso('Não foi possível carregar o catálogo.');
     }
+  }
+
+  function mapearProdutoCatalogo(row = {}) {
+    const disponibilidade = row.disponivel ?? row.disponibilidade ?? row.ativo ?? true;
+    return {
+      id: String(row.id || ''),
+      nome: String(row.nome || row.name || ''),
+      preco: row.preco ?? row.price ?? '',
+      descricao: String(row.descricao || row.description || ''),
+      imagemUrl: String(row.imagem_url || row.imagemUrl || row.image_url || row.foto_url || ''),
+      disponivel: disponibilidade !== false && disponibilidade !== 'false' && disponibilidade !== 0 && disponibilidade !== '0'
+    };
   }
 
   function limparProdutosCatalogoCarregados() {
