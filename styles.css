@@ -480,7 +480,8 @@ textarea { resize: vertical; min-height: 92px; }
   Isso evita que Chrome/Android/driver arredondem a altura e criem uma segunda
   página em branco.
 */
-@page { size: A4 portrait; margin: 0; }
+@page { size: 210mm 297mm; margin: 0; }
+@page :first { size: 210mm 297mm; margin: 0; }
 
 @media print {
   html,
@@ -510,6 +511,19 @@ textarea { resize: vertical; min-height: 92px; }
   .preview-modal,
   .toast {
     display: none !important;
+  }
+
+  body.print-pedido::before,
+  body.print-cartao-com::before,
+  body.print-cartao-sem::before {
+    content: "";
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    height: 297mm;
+    pointer-events: none;
+    z-index: -1;
   }
 
   .print-area {

@@ -1098,6 +1098,7 @@
     renderInputs();
     renderPreview();
     prepararModoImpressao(tipo);
+    garantirPaginaA4Impressao();
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -1127,6 +1128,41 @@
 
     const folha = $(`.print-area .print-sheet[data-preview-kind="${modo}"]`);
     if (folha) folha.classList.add('print-active');
+  }
+
+  function garantirPaginaA4Impressao() {
+    const styleId = 'force-a4-print-style';
+    let style = document.getElementById(styleId);
+
+    if (!style) {
+      style = document.createElement('style');
+      style.id = styleId;
+      style.media = 'print';
+      document.head.appendChild(style);
+    }
+
+    // Reforço inline para o Chrome/Android e drivers que ignoram ou demoram a
+    // aplicar o @page do arquivo CSS externo. O navegador ainda pode permitir
+    // alteração manual, mas a página enviada pelo app passa a declarar A4.
+    style.textContent = `
+      @page { size: 210mm 297mm; margin: 0; }
+      @page :first { size: 210mm 297mm; margin: 0; }
+      @media print {
+        html, body { width: 210mm !important; max-width: 210mm !important; }
+        body.print-pedido::before,
+        body.print-cartao-com::before,
+        body.print-cartao-sem::before {
+          content: "";
+          position: fixed;
+          left: 0;
+          top: 0;
+          width: 210mm;
+          height: 297mm;
+          pointer-events: none;
+          z-index: -1;
+        }
+      }
+    `;
   }
 
   function limparModoImpressao() {
