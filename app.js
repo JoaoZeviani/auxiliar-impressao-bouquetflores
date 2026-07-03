@@ -230,7 +230,7 @@
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY_ANTIGO);
       if (raw) state = JSON.parse(raw);
     } catch (error) {
-      aviso('Não foi possível carregar os dados salvos. O programa abriu com dados limpos.');
+      aviso('Não foi possível carregar os dados salvos . O programa abriu com dados limpos.');
     }
   }
 
