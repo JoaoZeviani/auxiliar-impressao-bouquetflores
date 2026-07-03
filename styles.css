@@ -1223,3 +1223,12 @@ textarea { resize: vertical; min-height: 92px; }
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
+
+
+/* Ajustes v43: imagens completas dentro do quadrado do pedido */
+.pedido-produto-foto {
+  object-fit: contain !important;
+  object-position: center center !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+}
