@@ -999,11 +999,11 @@ textarea { resize: vertical; min-height: 92px; }
   font-feature-settings: "tnum" 1;
 }
 
-.p-valor {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+.pedido-produto-linha strong {
+  justify-self: start;
+  text-align: left;
 }
+
 
 /* Ajustes v38: placeholders nos campos de produto para economizar espaço */
 .product-placeholder-field {
