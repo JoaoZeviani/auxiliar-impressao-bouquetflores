@@ -7,6 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
+  const APP_SHELL_VERSION = 'v49';
 
 
   const defaultState = {
@@ -205,9 +206,64 @@
     carregarCatalogoProdutos({ silencioso: true, origemAutomatica: true });
     iniciarAtualizacaoAutomaticaCatalogo();
 
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      navigator.serviceWorker.register('service-worker.js').catch(() => {});
-    }
+    registrarServiceWorkerAutoAtualizavel();
+  }
+
+  function registrarServiceWorkerAutoAtualizavel() {
+    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+
+    const recarregarComVersaoNova = () => {
+      const chaveReload = `auxiliar-impressao-sw-reloaded-${APP_SHELL_VERSION}`;
+      if (sessionStorage.getItem(chaveReload)) return;
+      sessionStorage.setItem(chaveReload, '1');
+      window.location.reload();
+    };
+
+    const tinhaController = Boolean(navigator.serviceWorker.controller);
+    let reloadEmAndamento = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!tinhaController || reloadEmAndamento) return;
+      reloadEmAndamento = true;
+      recarregarComVersaoNova();
+    });
+
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event?.data?.type === 'APP_UPDATED') recarregarComVersaoNova();
+    });
+
+    navigator.serviceWorker.register('service-worker.js')
+      .then(registration => {
+        const ativarNovoWorker = worker => {
+          if (!worker) return;
+
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        };
+
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        if (registration.installing) ativarNovoWorker(registration.installing);
+
+        registration.addEventListener('updatefound', () => {
+          ativarNovoWorker(registration.installing);
+        });
+
+        const checarAtualizacao = () => {
+          if (document.visibilityState && document.visibilityState !== 'visible') return;
+          registration.update().catch(() => {});
+        };
+
+        checarAtualizacao();
+        document.addEventListener('visibilitychange', checarAtualizacao);
+        window.addEventListener('online', checarAtualizacao);
+      })
+      .catch(() => {});
   }
 
   function structuredCloneSafe(obj) {
@@ -230,7 +286,7 @@
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY_ANTIGO);
       if (raw) state = JSON.parse(raw);
     } catch (error) {
-      aviso('Não foi possível carregar os dados salvos . O programa abriu com dados limpos.');
+      aviso('Não foi possível carregar os dados salvos. O programa abriu com dados limpos.');
     }
   }
 
