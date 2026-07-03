@@ -1861,7 +1861,22 @@
     renderTudo();
   }
 
-  function preencherTeste() {
+  async function preencherTeste() {
+    let produtosCatalogo = produtosCatalogoDisponiveis();
+
+    if (produtosCatalogo.length < 2 && temConfiguracaoCatalogoSupabase()) {
+      const carregou = await carregarCatalogoProdutos({ silencioso: false });
+      if (carregou) produtosCatalogo = produtosCatalogoDisponiveis();
+    }
+
+    if (produtosCatalogo.length < 2) {
+      aviso('Carregue ao menos dois produtos do catálogo para preencher o pedido teste.');
+      return;
+    }
+
+    const produtosTeste = selecionarProdutosAleatoriosCatalogo(produtosCatalogo, 2)
+      .map(criarProdutoPedidoAPartirDoCatalogo);
+
     const hoje = new Date();
     hoje.setDate(hoje.getDate() + 1);
     state.pedido = {
@@ -1872,20 +1887,21 @@
       telefone: '(16) 99999-1234',
       pedido: '',
       produtos: [
-        { ...produtoPedidoVazio(), nome: 'Orquídea branca', preco: formatarValorParaTela('95'), observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
-        { ...produtoPedidoVazio(), nome: 'Caixa de bombons', preco: formatarValorParaTela('25'), observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
-        { ...produtoPedidoVazio(), nome: 'Cartão com mensagem', preco: '', observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
+        ...produtosTeste,
         produtoPedidoVazio()
       ],
+      taxaEntregaAtiva: true,
       dataEntrega: formatDate(hoje),
       diaSemana: weekday(hoje),
       periodoEntrega: 'Tarde',
       vendedor: state.pedido.vendedor || state.vendedores[0] || 'Loja',
-      valor: formatarValorParaTela('120,5'),
+      valor: '',
       pagamentos: [...pagamentos],
       cliente: 'João Pereira',
       foneCliente: '(16) 98888-4321'
     };
+    recalcularValorPedido();
+
     state.cartao = {
       ...state.cartao,
       tipo: 'com',
@@ -1898,7 +1914,29 @@
     modalPreviewMode = 'pedido';
     salvarDadosDebounced();
     renderTudo();
-    aviso('Pedido teste preenchido.');
+    aviso('Pedido teste preenchido com produtos aleatórios do catálogo e taxa de entrega.');
+  }
+
+  function produtosCatalogoDisponiveis() {
+    return produtosCatalogoAtuais().filter(produto => produto?.nome && produto.disponivel !== false);
+  }
+
+  function selecionarProdutosAleatoriosCatalogo(produtos, quantidade) {
+    return [...produtos]
+      .map(produto => ({ produto, ordem: Math.random() }))
+      .sort((a, b) => a.ordem - b.ordem)
+      .slice(0, quantidade)
+      .map(item => item.produto);
+  }
+
+  function criarProdutoPedidoAPartirDoCatalogo(produtoCatalogo) {
+    const produto = produtoPedidoVazio();
+    produto.catalogoId = produtoCatalogo.id || '';
+    produto.nome = produtoCatalogo.nome || '';
+    produto.preco = produtoCatalogo.preco ? formatarValorParaTela(produtoCatalogo.preco) : '';
+    produto.fotoUrl = produtoCatalogo.imagemUrl || '';
+    produto.fotoNome = produto.fotoUrl ? 'Imagem do catálogo' : '';
+    return produto;
   }
 
 
