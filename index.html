@@ -90,24 +90,20 @@
 
           <fieldset>
             <legend>Pedido e pagamento</legend>
-            <label>Pedido
-              <textarea data-bind="pedido.pedido" rows="8"></textarea>
-            </label>
-            <div class="photo-picker top-gap">
+            <div class="order-products-header">
               <div>
-                <strong>Foto do pedido</strong>
-                <p id="pedidoFotoResumo">Nenhuma foto selecionada.</p>
+                <strong>Produtos do pedido</strong>
+                <p>Digite o nome do produto, preço, foto e observação. O nome é obrigatório.</p>
               </div>
               <div class="button-row wrap">
-                <label class="file-button">Selecionar foto
-                  <input type="file" id="pedidoFotoInput" accept="image/*">
-                </label>
-                <button id="btnRemoverFotoPedido" type="button" class="secondary">Remover foto</button>
+                <button id="btnAdicionarProdutoPedido" type="button" class="secondary">Adicionar produto</button>
+                <button id="btnAdicionarTaxaEntrega" type="button">Adicionar taxa de entrega</button>
               </div>
-              <img id="pedidoFotoThumb" class="photo-thumb" alt="Prévia da foto do pedido" hidden>
             </div>
+            <div id="pedidoProdutosLista" class="order-products-list"></div>
+            <datalist id="catalogoProdutosDatalist"></datalist>
             <div class="grid-form compact-grid top-gap">
-              <label>Valor
+              <label>Valor total
                 <input type="text" data-bind="pedido.valor" inputmode="decimal" autocomplete="off">
               </label>
             </div>
@@ -227,7 +223,7 @@
 
         <section class="screen" id="screen-ajustes">
           <h2>Configurações</h2>
-          <p>Aqui ficam vendedores, fonte dos dizeres, dados de teste e ajustes finos de posição.</p>
+          <p>Aqui ficam vendedores, fonte dos dizeres, catálogo de produtos e dados de teste.</p>
 
           <div class="config-layout">
             <div class="config-controls">
@@ -274,9 +270,32 @@
           </fieldset>
 
           <fieldset>
-            <legend>Imagem do pedido</legend>
-            <p>Escolha se a foto adicionada ao pedido aparece em preto e branco ou colorida.</p>
-            <button id="btnAlternarCorFotoPedido" type="button">Foto do pedido: preto e branco</button>
+            <legend>Fotos do pedido</legend>
+            <p>Escolha se as fotos dos produtos aparecem em preto e branco ou coloridas.</p>
+            <button id="btnAlternarCorFotoPedido" type="button">Fotos do pedido: preto e branco</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Taxa de entrega</legend>
+            <p>Valor usado pelo botão “Adicionar taxa de entrega”.</p>
+            <label>Valor padrão da taxa
+              <input type="text" data-bind="configuracoes.taxaEntrega" inputmode="decimal" autocomplete="off">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Catálogo Supabase</legend>
+            <p>Consulta somente leitura dos produtos do Auxiliar de Catálogo. O app de impressão não altera o catálogo.</p>
+            <label>Project URL
+              <input type="url" data-bind="configuracoes.catalogoSupabaseUrl" autocomplete="off">
+            </label>
+            <label class="top-gap">Chave pública / anon
+              <input type="text" data-bind="configuracoes.catalogoSupabaseAnonKey" autocomplete="off">
+            </label>
+            <div class="button-row wrap top-gap">
+              <button id="btnAtualizarCatalogoProdutos" type="button">Atualizar catálogo</button>
+            </div>
+            <p id="catalogoProdutosStatus" class="catalog-status">Catálogo ainda não carregado.</p>
           </fieldset>
 
             </div>

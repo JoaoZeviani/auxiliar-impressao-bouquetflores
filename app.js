@@ -3,6 +3,10 @@
   const STORAGE_KEY = 'auxiliar-impressao-bouquet-flores-v3';
   const STORAGE_KEY_ANTIGO = 'auxiliar-impressao-bouquet-flores-v1';
   const pagamentos = ['Vem pagar', 'Receber', 'Cartão', 'Pix', 'Dinheiro'];
+  const DEFAULT_CATALOGO_SUPABASE_URL = 'https://kixsrmftboxdjlgqdbdw.supabase.co';
+  const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
+  const DEFAULT_TAXA_ENTREGA = '25,00';
+
 
   const defaultState = {
     pedido: {
@@ -11,6 +15,7 @@
       bairro: '',
       telefone: '',
       pedido: '',
+      produtos: [],
       dataEntrega: '',
       diaSemana: '',
       periodoEntrega: '',
@@ -34,7 +39,15 @@
     vendedores: ['Loja', 'WhatsApp'],
     ultimoVendedor: '',
     configuracoes: {
-      fotoPedidoColorida: false
+      fotoPedidoColorida: false,
+      taxaEntrega: DEFAULT_TAXA_ENTREGA,
+      catalogoSupabaseUrl: DEFAULT_CATALOGO_SUPABASE_URL,
+      catalogoSupabaseAnonKey: DEFAULT_CATALOGO_SUPABASE_ANON_KEY
+    },
+    catalogo: {
+      produtos: [],
+      carregadoEm: '',
+      status: ''
     },
     calibragemPadraoVersao: 12,
     calibragem: {
@@ -179,6 +192,7 @@
     normalizarState();
     bindEvents();
     renderTudo();
+    carregarCatalogoProdutos({ silencioso: true });
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('service-worker.js').catch(() => {});
@@ -238,8 +252,15 @@
     if (!['com', 'sem'].includes(state.cartao.tipo)) state.cartao.tipo = 'com';
     if (!state.cartao.fontFamily) state.cartao.fontFamily = defaultState.cartao.fontFamily;
     state.configuracoes.fotoPedidoColorida = Boolean(state.configuracoes.fotoPedidoColorida);
+    state.configuracoes.taxaEntrega = state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA;
+    state.configuracoes.catalogoSupabaseUrl = state.configuracoes.catalogoSupabaseUrl || DEFAULT_CATALOGO_SUPABASE_URL;
+    state.configuracoes.catalogoSupabaseAnonKey = state.configuracoes.catalogoSupabaseAnonKey || DEFAULT_CATALOGO_SUPABASE_ANON_KEY;
+    if (!state.catalogo || typeof state.catalogo !== 'object') state.catalogo = structuredCloneSafe(defaultState.catalogo);
+    if (!Array.isArray(state.catalogo.produtos)) state.catalogo.produtos = [];
     if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = structuredCloneSafe(defaultState.calibragem.baseCampos);
     state.pedido.pagamentos = pagamentos.filter(p => (state.pedido.pagamentos || []).includes(p));
+    migrarPedidoAntigoParaProdutos();
+    normalizarProdutosPedido();
   }
 
   function bindEvents() {
@@ -255,8 +276,12 @@
         if (path === 'pedido.dataEntrega') {
           aplicarDataEntregaDigitada(false);
         }
+        if (path === 'configuracoes.taxaEntrega') atualizarTaxaEntregaDoPedido(false);
+        if (path === 'configuracoes.catalogoSupabaseUrl' || path === 'configuracoes.catalogoSupabaseAnonKey') limparProdutosCatalogoCarregados();
         salvarDadosDebounced();
         renderCartaoTipo();
+        renderProdutosPedidoForm();
+        renderCatalogoControles();
         renderPreview();
       });
       input.addEventListener('change', () => {
@@ -264,9 +289,13 @@
         setByPath(state, path, input.value);
         if (path === 'pedido.vendedor') lembrarVendedor(input.value);
         if (path === 'pedido.dataEntrega') aplicarDataEntregaDigitada(true);
+        if (path === 'configuracoes.taxaEntrega') atualizarTaxaEntregaDoPedido(true);
+        if (path === 'configuracoes.catalogoSupabaseUrl' || path === 'configuracoes.catalogoSupabaseAnonKey') limparProdutosCatalogoCarregados();
         salvarDadosDebounced();
         renderVendedores();
         renderInputs();
+        renderProdutosPedidoForm();
+        renderCatalogoControles();
         renderPreview();
       });
     });
@@ -319,6 +348,18 @@
         });
       });
     }
+
+
+    const produtosLista = $('#pedidoProdutosLista');
+    if (produtosLista) {
+      produtosLista.addEventListener('input', handleProdutoPedidoInput);
+      produtosLista.addEventListener('change', handleProdutoPedidoChange);
+      produtosLista.addEventListener('click', handleProdutoPedidoClick);
+    }
+
+    on('#btnAdicionarProdutoPedido', 'click', adicionarProdutoPedidoManual);
+    on('#btnAdicionarTaxaEntrega', 'click', adicionarTaxaEntregaPedido);
+    on('#btnAtualizarCatalogoProdutos', 'click', () => carregarCatalogoProdutos({ silencioso: false }));
 
     $$('[data-payment]').forEach(chk => {
       chk.addEventListener('change', () => {
@@ -409,7 +450,9 @@
     renderInputs();
     renderVendedores();
     renderCartaoTipo();
+    renderProdutosPedidoForm();
     renderFotoPedidoControles();
+    renderCatalogoControles();
     renderPreview();
   }
 
@@ -422,6 +465,7 @@
       const value = getByPath(state, input.dataset.bindNumber) ?? 0;
       if (input.value !== String(value)) input.value = value;
     });
+
     $$('[data-payment]').forEach(chk => {
       chk.checked = (state.pedido.pagamentos || []).includes(chk.dataset.payment);
     });
@@ -484,26 +528,397 @@
   }
 
   function renderFotoPedidoControles() {
-    const temFoto = Boolean(state.pedido.fotoDataUrl);
-    const resumo = $('#pedidoFotoResumo');
-    if (resumo) resumo.textContent = temFoto ? (state.pedido.fotoNome || 'Foto selecionada.') : 'Nenhuma foto selecionada.';
-
-    const thumb = $('#pedidoFotoThumb');
-    if (thumb) {
-      thumb.hidden = !temFoto;
-      thumb.src = temFoto ? state.pedido.fotoDataUrl : '';
-      thumb.classList.toggle('photo-grayscale', !state.configuracoes.fotoPedidoColorida);
-    }
-
-    const remover = $('#btnRemoverFotoPedido');
-    if (remover) remover.disabled = !temFoto;
-
     const alternar = $('#btnAlternarCorFotoPedido');
     if (alternar) {
       alternar.textContent = state.configuracoes.fotoPedidoColorida
-        ? 'Foto do pedido: colorida'
-        : 'Foto do pedido: preto e branco';
+        ? 'Fotos do pedido: coloridas'
+        : 'Fotos do pedido: preto e branco';
     }
+  }
+
+  function renderCatalogoControles() {
+    renderCatalogoDatalist();
+
+    const status = $('#catalogoProdutosStatus');
+    if (status) {
+      const quantidade = Array.isArray(state.catalogo.produtos) ? state.catalogo.produtos.length : 0;
+      const carregado = state.catalogo.carregadoEm ? ` Última atualização: ${state.catalogo.carregadoEm}.` : '';
+      status.textContent = state.catalogo.status || (quantidade ? `${quantidade} produto(s) carregado(s) do catálogo.${carregado}` : 'Catálogo ainda não carregado.');
+    }
+  }
+
+  function renderCatalogoDatalist() {
+    const datalist = $('#catalogoProdutosDatalist');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    (state.catalogo.produtos || []).forEach(produto => {
+      const option = document.createElement('option');
+      option.value = produto.nome || '';
+      const preco = produto.preco ? formatarValorParaTela(produto.preco) : '';
+      option.label = [produto.nome, preco].filter(Boolean).join(' - ');
+      datalist.append(option);
+    });
+  }
+
+  function renderProdutosPedidoForm() {
+    const lista = $('#pedidoProdutosLista');
+    if (!lista) return;
+    normalizarProdutosPedido();
+
+    lista.innerHTML = '';
+    state.pedido.produtos.forEach((produto, index) => {
+      const card = document.createElement('div');
+      card.className = `order-product-card${produto.ehTaxaEntrega ? ' delivery-product-card' : ''}`;
+      card.dataset.produtoIndex = String(index);
+
+      const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
+      const fotoResumo = fotoSrc ? (produto.fotoNome || 'Foto selecionada.') : 'Nenhuma foto selecionada.';
+      const podeRemover = state.pedido.produtos.length > 1 || produtoPossuiConteudo(produto);
+      const inputFotoId = `produtoFoto-${produto.id || index}`;
+      const titulo = produto.ehTaxaEntrega ? 'Taxa de entrega' : `Produto ${index + 1}`;
+
+      card.innerHTML = `
+        <div class="order-product-title-row">
+          <strong>${escapeHtml(titulo)}</strong>
+          <button type="button" class="secondary small-button" data-produto-action="remover" ${podeRemover ? '' : 'disabled'}>Remover</button>
+        </div>
+        <div class="grid-form compact-grid">
+          <label>Nome do produto <span class="required-dot">*</span>
+            <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
+          </label>
+          <label>Preço
+            <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off">
+          </label>
+        </div>
+        <label class="top-gap">Observação
+          <textarea rows="2" data-produto-campo="observacao">${escapeHtml(produto.observacao)}</textarea>
+        </label>
+        <div class="photo-picker product-photo-picker top-gap">
+          <div>
+            <strong>Foto do produto</strong>
+            <p>${escapeHtml(fotoResumo)}</p>
+          </div>
+          <div class="button-row wrap">
+            <label class="file-button">Selecionar foto
+              <input type="file" id="${inputFotoId}" data-produto-foto accept="image/*" ${produto.ehTaxaEntrega ? 'disabled' : ''}>
+            </label>
+            <button type="button" class="secondary" data-produto-action="remover-foto" ${fotoSrc ? '' : 'disabled'}>Remover foto</button>
+          </div>
+          ${fotoSrc ? `<img src="${escapeAttr(fotoSrc)}" class="photo-thumb ${state.configuracoes.fotoPedidoColorida ? '' : 'photo-grayscale'}" alt="Prévia da foto do produto">` : ''}
+        </div>
+      `;
+      lista.append(card);
+    });
+
+    const btnTaxa = $('#btnAdicionarTaxaEntrega');
+    if (btnTaxa) {
+      btnTaxa.disabled = pedidoTemTaxaEntrega();
+      btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Taxa de entrega adicionada' : 'Adicionar taxa de entrega';
+    }
+  }
+
+
+  function produtoPedidoVazio() {
+    return {
+      id: gerarIdProdutoPedido(),
+      nome: '',
+      preco: '',
+      observacao: '',
+      fotoDataUrl: '',
+      fotoUrl: '',
+      fotoNome: '',
+      catalogoId: '',
+      ehTaxaEntrega: false
+    };
+  }
+
+  function gerarIdProdutoPedido() {
+    return `prod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function migrarPedidoAntigoParaProdutos() {
+    if (Array.isArray(state.pedido.produtos) && state.pedido.produtos.length) return;
+    const textoAntigo = String(state.pedido.pedido || '').trim();
+    if (!textoAntigo) return;
+
+    state.pedido.produtos = textoAntigo
+      .split('\n')
+      .map(linha => linha.trim())
+      .filter(Boolean)
+      .map(nome => ({ ...produtoPedidoVazio(), nome }));
+    state.pedido.pedido = '';
+  }
+
+  function normalizarProdutosPedido() {
+    if (!Array.isArray(state.pedido.produtos)) state.pedido.produtos = [];
+
+    state.pedido.produtos = state.pedido.produtos.map(produto => ({
+      ...produtoPedidoVazio(),
+      ...(produto || {}),
+      id: produto?.id || gerarIdProdutoPedido(),
+      nome: String(produto?.nome || ''),
+      preco: String(produto?.preco || ''),
+      observacao: String(produto?.observacao || ''),
+      fotoDataUrl: String(produto?.fotoDataUrl || ''),
+      fotoUrl: String(produto?.fotoUrl || ''),
+      fotoNome: String(produto?.fotoNome || ''),
+      catalogoId: String(produto?.catalogoId || ''),
+      ehTaxaEntrega: Boolean(produto?.ehTaxaEntrega)
+    }));
+
+    state.pedido.produtos = state.pedido.produtos.filter((produto, index, lista) => {
+      if (produto.ehTaxaEntrega) return true;
+      if (produtoPossuiConteudo(produto)) return true;
+      return index === lista.length - 1;
+    });
+
+    if (!state.pedido.produtos.length || produtoPossuiConteudo(state.pedido.produtos[state.pedido.produtos.length - 1])) {
+      state.pedido.produtos.push(produtoPedidoVazio());
+    }
+  }
+
+  function produtoPossuiConteudo(produto) {
+    return Boolean(
+      String(produto?.nome || '').trim()
+      || String(produto?.preco || '').trim()
+      || String(produto?.observacao || '').trim()
+      || produto?.fotoDataUrl
+      || produto?.fotoUrl
+      || produto?.ehTaxaEntrega
+    );
+  }
+
+  function produtosPedidoPreenchidos() {
+    normalizarProdutosPedido();
+    return state.pedido.produtos.filter(produto => String(produto.nome || '').trim());
+  }
+
+  function pedidoTemTaxaEntrega() {
+    return state.pedido.produtos.some(produto => produto.ehTaxaEntrega);
+  }
+
+  function handleProdutoPedidoInput(event) {
+    const target = event.target;
+    const card = target.closest?.('[data-produto-index]');
+    const campo = target.dataset?.produtoCampo;
+    if (!card || !campo) return;
+
+    const index = Number(card.dataset.produtoIndex);
+    const produto = state.pedido.produtos[index];
+    if (!produto) return;
+
+    produto[campo] = target.value;
+    if (campo === 'preco') {
+      recalcularValorPedido();
+      renderInputs();
+    }
+    salvarDadosDebounced();
+    renderPreview();
+  }
+
+  function handleProdutoPedidoChange(event) {
+    const target = event.target;
+    const card = target.closest?.('[data-produto-index]');
+    if (!card) return;
+
+    const index = Number(card.dataset.produtoIndex);
+    const produto = state.pedido.produtos[index];
+    if (!produto) return;
+
+    if (target.dataset?.produtoCampo === 'nome') {
+      autoPreencherProdutoDoCatalogo(index, target.value);
+      normalizarProdutosPedido();
+      recalcularValorPedido();
+      salvarDadosDebounced();
+      renderProdutosPedidoForm();
+      renderInputs();
+      renderPreview();
+      return;
+    }
+
+    if (target.dataset?.produtoCampo === 'preco') {
+      produto.preco = formatarValorParaTela(produto.preco);
+      recalcularValorPedido();
+      salvarDadosDebounced();
+      renderProdutosPedidoForm();
+      renderInputs();
+      renderPreview();
+      return;
+    }
+
+    if (target.matches?.('[data-produto-foto]')) {
+      const file = target.files && target.files[0];
+      target.value = '';
+      if (file) carregarFotoProdutoPedido(index, file);
+    }
+  }
+
+  function handleProdutoPedidoClick(event) {
+    const button = event.target.closest?.('[data-produto-action]');
+    if (!button) return;
+
+    const card = button.closest('[data-produto-index]');
+    const index = Number(card?.dataset.produtoIndex);
+    const produto = state.pedido.produtos[index];
+    if (!produto) return;
+
+    const action = button.dataset.produtoAction;
+    if (action === 'remover') {
+      state.pedido.produtos.splice(index, 1);
+      normalizarProdutosPedido();
+      recalcularValorPedido();
+      salvarDadosDebounced();
+      renderTudo();
+      return;
+    }
+
+    if (action === 'remover-foto') {
+      produto.fotoDataUrl = '';
+      produto.fotoUrl = '';
+      produto.fotoNome = '';
+      salvarDadosDebounced();
+      renderTudo();
+    }
+  }
+
+  function adicionarProdutoPedidoManual() {
+    normalizarProdutosPedido();
+    if (produtoPossuiConteudo(state.pedido.produtos[state.pedido.produtos.length - 1])) {
+      state.pedido.produtos.push(produtoPedidoVazio());
+    }
+    salvarDadosDebounced();
+    renderProdutosPedidoForm();
+  }
+
+  function adicionarTaxaEntregaPedido() {
+    if (pedidoTemTaxaEntrega()) return aviso('A taxa de entrega já foi adicionada.');
+    const produto = produtoPedidoVazio();
+    produto.nome = 'Taxa de entrega';
+    produto.preco = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
+    produto.observacao = '';
+    produto.ehTaxaEntrega = true;
+
+    normalizarProdutosPedido();
+    const ultimo = state.pedido.produtos[state.pedido.produtos.length - 1];
+    if (ultimo && !produtoPossuiConteudo(ultimo)) state.pedido.produtos.pop();
+    state.pedido.produtos.push(produto, produtoPedidoVazio());
+    recalcularValorPedido();
+    salvarDadosDebounced();
+    renderTudo();
+    aviso('Taxa de entrega adicionada ao pedido.');
+  }
+
+  function atualizarTaxaEntregaDoPedido(formatar) {
+    if (formatar) state.configuracoes.taxaEntrega = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
+    state.pedido.produtos.forEach(produto => {
+      if (produto.ehTaxaEntrega) produto.preco = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
+    });
+    recalcularValorPedido();
+  }
+
+  function recalcularValorPedido() {
+    const total = produtosPedidoPreenchidos().reduce((soma, produto) => soma + (parseMoeda(produto.preco) || 0), 0);
+    state.pedido.valor = total > 0 ? total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+  }
+
+  async function carregarFotoProdutoPedido(index, file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      aviso('Selecione um arquivo de imagem válido.');
+      return;
+    }
+
+    try {
+      const dataUrl = await redimensionarImagemParaPedido(file);
+      const produto = state.pedido.produtos[index];
+      if (!produto) return;
+      produto.fotoDataUrl = dataUrl;
+      produto.fotoUrl = '';
+      produto.fotoNome = file.name || 'Foto selecionada';
+      salvarDadosDebounced();
+      renderTudo();
+      aviso('Foto adicionada ao produto.');
+    } catch (error) {
+      aviso('Não foi possível carregar a foto. Tente outra imagem.');
+    }
+  }
+
+  function autoPreencherProdutoDoCatalogo(index, nomeDigitado) {
+    const nome = String(nomeDigitado || '').trim();
+    if (!nome) return;
+
+    const produtoCatalogo = (state.catalogo.produtos || []).find(produto => normalizarTextoBusca(produto.nome) === normalizarTextoBusca(nome));
+    if (!produtoCatalogo) return;
+
+    const produto = state.pedido.produtos[index];
+    if (!produto || produto.ehTaxaEntrega) return;
+
+    produto.catalogoId = produtoCatalogo.id || '';
+    produto.nome = produtoCatalogo.nome || produto.nome;
+    produto.preco = formatarValorParaTela(produtoCatalogo.preco);
+    produto.observacao = produto.observacao || produtoCatalogo.descricao || '';
+    produto.fotoUrl = produto.fotoDataUrl ? produto.fotoUrl : (produtoCatalogo.imagemUrl || '');
+    produto.fotoNome = produto.fotoNome || (produtoCatalogo.imagemUrl ? 'Imagem do catálogo' : '');
+  }
+
+  async function carregarCatalogoProdutos({ silencioso = false } = {}) {
+    const url = String(state.configuracoes.catalogoSupabaseUrl || '').trim().replace(/\/$/, '');
+    const key = String(state.configuracoes.catalogoSupabaseAnonKey || '').trim();
+    if (!url || !key) {
+      state.catalogo.status = 'Informe a URL e a chave pública do Supabase para carregar o catálogo.';
+      renderCatalogoControles();
+      return;
+    }
+
+    try {
+      state.catalogo.status = 'Carregando produtos do catálogo...';
+      renderCatalogoControles();
+
+      const endpoint = `${url}/rest/v1/produtos?select=id,nome,preco,descricao,imagem_url,disponivel&disponivel=eq.true&order=nome.asc`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Accept: 'application/json'
+        }
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const rows = await response.json();
+      state.catalogo.produtos = (Array.isArray(rows) ? rows : []).map(row => ({
+        id: String(row.id || ''),
+        nome: String(row.nome || ''),
+        preco: row.preco ?? '',
+        descricao: String(row.descricao || ''),
+        imagemUrl: String(row.imagem_url || ''),
+        disponivel: row.disponivel !== false
+      })).filter(produto => produto.nome);
+      state.catalogo.carregadoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.`;
+      salvarDadosDebounced();
+      renderCatalogoControles();
+      renderProdutosPedidoForm();
+      if (!silencioso) aviso('Catálogo carregado.');
+    } catch (error) {
+      console.error(error);
+      state.catalogo.status = 'Não foi possível carregar o catálogo. Verifique a configuração e a política de leitura do Supabase.';
+      renderCatalogoControles();
+      if (!silencioso) aviso('Não foi possível carregar o catálogo.');
+    }
+  }
+
+  function limparProdutosCatalogoCarregados() {
+    state.catalogo.produtos = [];
+    state.catalogo.carregadoEm = '';
+    state.catalogo.status = 'Configuração alterada. Atualize o catálogo novamente.';
+  }
+
+  function normalizarTextoBusca(texto) {
+    return removerAcentos(String(texto || '').trim().toLowerCase()).replace(/\s+/g, ' ');
   }
 
   function renderPreview() {
@@ -564,15 +979,14 @@
     const data = splitDateParts(state.pedido.dataEntrega);
     $$('.pedido-overlay').forEach(root => {
       root.innerHTML = '';
-      root.classList.toggle('has-pedido-foto', Boolean(state.pedido.fotoDataUrl));
+      root.classList.toggle('has-pedido-foto', produtosPedidoPreenchidos().some(produto => produto.fotoDataUrl || produto.fotoUrl));
       root.classList.toggle('foto-pedido-colorida', Boolean(state.configuracoes.fotoPedidoColorida));
       root.classList.toggle('foto-pedido-pb', !state.configuracoes.fotoPedidoColorida);
       addField(root, 'p-entregar', state.pedido.entregarPara, 'pedido.entregarPara');
       addField(root, 'p-endereco', state.pedido.endereco, 'pedido.endereco');
       addField(root, 'p-bairro', state.pedido.bairro, 'pedido.bairro');
       addField(root, 'p-telefone', state.pedido.telefone, 'pedido.telefone');
-      addField(root, 'p-pedido', state.pedido.pedido, 'pedido.pedido');
-      addFotoPedido(root);
+      addProdutosPedido(root);
       addField(root, 'p-data-dia nowrap', data.dia, 'pedido.dataDia');
       addField(root, 'p-data-mes nowrap', data.mes, 'pedido.dataMes');
       addField(root, 'p-data-ano nowrap', data.ano, 'pedido.dataAno');
@@ -614,19 +1028,61 @@
     });
   }
 
-  function addFotoPedido(root) {
-    if (!state.pedido.fotoDataUrl) return;
+  function addProdutosPedido(root) {
+    const produtos = produtosPedidoPreenchidos();
+    const container = document.createElement('div');
+    container.className = 'pedido-produtos';
+    aplicarOffset(container, 'pedido.pedido');
 
-    const frame = document.createElement('div');
-    frame.className = 'pedido-foto-frame';
+    if (!produtos.length) {
+      container.textContent = '';
+      root.append(container);
+      return;
+    }
 
-    const img = document.createElement('img');
-    img.className = 'pedido-foto-img';
-    img.src = state.pedido.fotoDataUrl;
-    img.alt = 'Foto do pedido';
+    produtos.forEach(produto => {
+      const item = document.createElement('div');
+      const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
+      item.className = `pedido-produto-item${produto.ehTaxaEntrega ? ' pedido-produto-taxa' : ''}${fotoSrc ? '' : ' pedido-produto-sem-foto'}`;
+      if (fotoSrc) {
+        const img = document.createElement('img');
+        img.className = 'pedido-produto-foto pedido-foto-img';
+        img.src = fotoSrc;
+        img.alt = '';
+        item.append(img);
+      }
 
-    frame.append(img);
-    root.append(frame);
+      const info = document.createElement('div');
+      info.className = 'pedido-produto-info';
+
+      const linha = document.createElement('div');
+      linha.className = 'pedido-produto-linha';
+
+      const nome = document.createElement('strong');
+      nome.textContent = produto.nome || '';
+      linha.append(nome);
+
+      const preco = parseMoeda(produto.preco);
+      if (preco !== null && preco > 0) {
+        const precoEl = document.createElement('span');
+        precoEl.textContent = formatarValorParaTela(produto.preco);
+        linha.append(precoEl);
+      }
+
+      info.append(linha);
+
+      if (produto.observacao) {
+        const obs = document.createElement('div');
+        obs.className = 'pedido-produto-obs';
+        obs.textContent = produto.observacao;
+        info.append(obs);
+      }
+
+      item.append(info);
+      container.append(item);
+    });
+
+    root.append(container);
   }
 
   function addField(root, className, text, offsetKey) {
@@ -990,7 +1446,7 @@
     state.configuracoes.fotoPedidoColorida = !state.configuracoes.fotoPedidoColorida;
     salvarDadosDebounced();
     renderTudo();
-    aviso(state.configuracoes.fotoPedidoColorida ? 'Foto do pedido colorida.' : 'Foto do pedido em preto e branco.');
+    aviso(state.configuracoes.fotoPedidoColorida ? 'Fotos do pedido coloridas.' : 'Fotos do pedido em preto e branco.');
   }
 
   function redimensionarImagemParaPedido(file) {
@@ -1052,6 +1508,7 @@
     const fontFamily = state.cartao.fontFamily || defaultState.cartao.fontFamily;
     const fontDelta = Number(state.cartao.fontDelta) || 0;
     const configuracoes = structuredCloneSafe(state.configuracoes || defaultState.configuracoes);
+    const catalogo = structuredCloneSafe(state.catalogo || defaultState.catalogo);
     state.pedido = structuredCloneSafe(defaultState.pedido);
     state.cartao = structuredCloneSafe(defaultState.cartao);
     state.pedido.vendedor = vendedor;
@@ -1059,6 +1516,7 @@
     state.cartao.fontFamily = fontFamily;
     state.cartao.fontDelta = fontDelta;
     state.configuracoes = configuracoes;
+    state.catalogo = catalogo;
     salvarDadosDebounced();
     renderTudo();
   }
@@ -1072,7 +1530,13 @@
       endereco: 'Rua das Hortênsias, 128 - Apto 42',
       bairro: 'Jardim Primavera',
       telefone: '(16) 99999-1234',
-      pedido: '1 orquídea branca\n1 caixa de bombons\n1 cartão com mensagem',
+      pedido: '',
+      produtos: [
+        { ...produtoPedidoVazio(), nome: 'Orquídea branca', preco: formatarValorParaTela('95'), observacao: 'Branca', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
+        { ...produtoPedidoVazio(), nome: 'Caixa de bombons', preco: formatarValorParaTela('25'), observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
+        { ...produtoPedidoVazio(), nome: 'Cartão com mensagem', preco: '', observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
+        produtoPedidoVazio()
+      ],
       dataEntrega: formatDate(hoje),
       diaSemana: weekday(hoje),
       periodoEntrega: 'Tarde',
@@ -1221,7 +1685,26 @@
     root.style.setProperty('--modal-preview-zoom', zoom.toFixed(3));
   }
 
+
+  function validarPedidoParaImpressao() {
+    const produtos = produtosPedidoPreenchidos();
+    if (!produtos.length) {
+      aviso('Adicione pelo menos um produto ao pedido.');
+      return false;
+    }
+
+    const produtoSemNome = state.pedido.produtos.some(produto => produtoPossuiConteudo(produto) && !String(produto.nome || '').trim());
+    if (produtoSemNome) {
+      aviso('Preencha o nome de todos os produtos adicionados.');
+      return false;
+    }
+
+    return true;
+  }
+
   function imprimir(tipo) {
+    if (tipo === 'pedido' && !validarPedidoParaImpressao()) return;
+    recalcularValorPedido();
     normalizarValorPedido();
     sincronizarDiaSemanaComData(true);
     renderInputs();
@@ -1403,6 +1886,10 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#096;');
   }
 
   function aviso(msg) {
