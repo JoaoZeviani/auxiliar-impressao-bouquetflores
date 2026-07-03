@@ -433,21 +433,9 @@
     });
     on('#btnImprimirPedido', 'click', () => imprimir('pedido'));
     on('#btnImprimirCartao', 'click', () => imprimir(state.cartao.tipo === 'sem' ? 'cartao-sem' : 'cartao-com'));
-    on('#btnInstalarApp', 'click', instalarAppAndroid);
-    window.addEventListener('beforeinstallprompt', event => {
-      event.preventDefault();
-      deferredInstallPrompt = event;
-      atualizarBotaoInstalacao();
-    });
-    window.addEventListener('appinstalled', () => {
-      deferredInstallPrompt = null;
-      atualizarBotaoInstalacao();
-    });
     window.addEventListener('resize', () => {
-      atualizarBotaoInstalacao();
       atualizarZoomPreviewModal();
     });
-    atualizarBotaoInstalacao();
   }
 
   function on(selector, eventName, handler) {
@@ -1982,8 +1970,7 @@
 
   async function instalarAppAndroid() {
     if (estaAbertoComoAplicativo()) {
-      atualizarBotaoInstalacao();
-      return;
+        return;
     }
 
     const { isAndroid, isIOS, isWindows } = detectarPlataforma();
@@ -1992,8 +1979,7 @@
       deferredInstallPrompt.prompt();
       try { await deferredInstallPrompt.userChoice; } catch (_) {}
       deferredInstallPrompt = null;
-      atualizarBotaoInstalacao();
-      return;
+        return;
     }
 
     if (isIOS) {
