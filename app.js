@@ -17,6 +17,7 @@
       telefone: '',
       pedido: '',
       produtos: [],
+      taxaEntregaAtiva: false,
       dataEntrega: '',
       diaSemana: '',
       periodoEntrega: '',
@@ -271,6 +272,7 @@
     state.pedido.pagamentos = pagamentos.filter(p => (state.pedido.pagamentos || []).includes(p));
     migrarPedidoAntigoParaProdutos();
     normalizarProdutosPedido();
+    recalcularValorPedido();
   }
 
   function bindEvents() {
@@ -572,7 +574,7 @@
     lista.innerHTML = '';
     state.pedido.produtos.forEach((produto, index) => {
       const card = document.createElement('div');
-      card.className = `order-product-card${produto.ehTaxaEntrega ? ' delivery-product-card' : ''}`;
+      card.className = 'order-product-card';
       card.dataset.produtoIndex = String(index);
 
       const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
@@ -583,7 +585,7 @@
       card.innerHTML = `
         <div class="product-card-grid">
           <label class="product-name-field product-placeholder-field">
-            <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" placeholder="Nome do produto" aria-label="Nome do produto" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
+            <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" placeholder="Nome do produto" aria-label="Nome do produto">
           </label>
           <label class="product-price-field product-placeholder-field">
             <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off" placeholder="Preço" aria-label="Preço">
@@ -592,7 +594,7 @@
             <span class="product-photo-name">${escapeHtml(fotoResumo)}</span>
             ${fotoSrc ? `<img src="${escapeAttr(fotoSrc)}" class="photo-thumb ${state.configuracoes.fotoPedidoColorida ? '' : 'photo-grayscale'}" alt="Prévia da foto do produto">` : ''}
             <label class="file-button small-file-button">Foto
-              <input type="file" id="${inputFotoId}" data-produto-foto accept="image/*" ${produto.ehTaxaEntrega ? 'disabled' : ''}>
+              <input type="file" id="${inputFotoId}" data-produto-foto accept="image/*">
             </label>
             <button type="button" class="secondary small-button" data-produto-action="remover-foto" ${fotoSrc ? '' : 'disabled'}>Remover foto</button>
             <button type="button" class="secondary small-button" data-produto-action="remover" ${podeRemover ? '' : 'disabled'}>Remover produto</button>
@@ -604,8 +606,8 @@
 
     const btnTaxa = $('#btnAdicionarTaxaEntrega');
     if (btnTaxa) {
-      btnTaxa.disabled = pedidoTemTaxaEntrega();
-      btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Taxa adicionada' : 'Adicionar taxa';
+      btnTaxa.disabled = false;
+      btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Remover taxa' : 'Adicionar taxa';
     }
 
     const focoViaTab = proximoFocoProdutoPorTab;
@@ -674,8 +676,7 @@
       fotoDataUrl: '',
       fotoUrl: '',
       fotoNome: '',
-      catalogoId: '',
-      ehTaxaEntrega: false
+      catalogoId: ''
     };
   }
 
@@ -699,22 +700,26 @@
   function normalizarProdutosPedido() {
     if (!Array.isArray(state.pedido.produtos)) state.pedido.produtos = [];
 
-    state.pedido.produtos = state.pedido.produtos.map(produto => ({
-      ...produtoPedidoVazio(),
-      ...(produto || {}),
-      id: produto?.id || gerarIdProdutoPedido(),
-      nome: String(produto?.nome || ''),
-      preco: String(produto?.preco || ''),
-      observacao: '',
-      fotoDataUrl: String(produto?.fotoDataUrl || ''),
-      fotoUrl: String(produto?.fotoUrl || ''),
-      fotoNome: String(produto?.fotoNome || ''),
-      catalogoId: String(produto?.catalogoId || ''),
-      ehTaxaEntrega: Boolean(produto?.ehTaxaEntrega)
-    }));
+    const tinhaTaxaComoProduto = state.pedido.produtos.some(produto => produto?.ehTaxaEntrega);
+    if (tinhaTaxaComoProduto) state.pedido.taxaEntregaAtiva = true;
+    state.pedido.taxaEntregaAtiva = Boolean(state.pedido.taxaEntregaAtiva);
+
+    state.pedido.produtos = state.pedido.produtos
+      .filter(produto => !produto?.ehTaxaEntrega)
+      .map(produto => ({
+        ...produtoPedidoVazio(),
+        ...(produto || {}),
+        id: produto?.id || gerarIdProdutoPedido(),
+        nome: String(produto?.nome || ''),
+        preco: String(produto?.preco || ''),
+        observacao: '',
+        fotoDataUrl: String(produto?.fotoDataUrl || ''),
+        fotoUrl: String(produto?.fotoUrl || ''),
+        fotoNome: String(produto?.fotoNome || ''),
+        catalogoId: String(produto?.catalogoId || '')
+      }));
 
     state.pedido.produtos = state.pedido.produtos.filter((produto, index, lista) => {
-      if (produto.ehTaxaEntrega) return true;
       if (produtoPossuiConteudo(produto)) return true;
       return index === lista.length - 1;
     });
@@ -730,7 +735,6 @@
       || String(produto?.preco || '').trim()
       || produto?.fotoDataUrl
       || produto?.fotoUrl
-      || produto?.ehTaxaEntrega
     );
   }
 
@@ -740,7 +744,7 @@
   }
 
   function pedidoTemTaxaEntrega() {
-    return state.pedido.produtos.some(produto => produto.ehTaxaEntrega);
+    return Boolean(state.pedido.taxaEntregaAtiva);
   }
 
   function handleProdutoPedidoInput(event) {
@@ -920,13 +924,7 @@
     const ultimo = state.pedido.produtos[state.pedido.produtos.length - 1];
     if (ultimo && !produtoPossuiConteudo(ultimo)) state.pedido.produtos.pop();
 
-    const taxaIndex = state.pedido.produtos.findIndex(item => item.ehTaxaEntrega);
-    if (taxaIndex >= 0) {
-      state.pedido.produtos.splice(taxaIndex, 0, produto);
-    } else {
-      state.pedido.produtos.push(produto);
-    }
-
+    state.pedido.produtos.push(produto);
     state.pedido.produtos.push(produtoPedidoVazio());
     recalcularValorPedido();
     salvarDadosDebounced();
@@ -935,32 +933,36 @@
   }
 
   function adicionarTaxaEntregaPedido() {
-    if (pedidoTemTaxaEntrega()) return aviso('A taxa de entrega já foi adicionada.');
-    const produto = produtoPedidoVazio();
-    produto.nome = 'Taxa de entrega';
-    produto.preco = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
-    produto.ehTaxaEntrega = true;
-
-    normalizarProdutosPedido();
-    const ultimo = state.pedido.produtos[state.pedido.produtos.length - 1];
-    if (ultimo && !produtoPossuiConteudo(ultimo)) state.pedido.produtos.pop();
-    state.pedido.produtos.push(produto, produtoPedidoVazio());
+    state.pedido.taxaEntregaAtiva = !pedidoTemTaxaEntrega();
     recalcularValorPedido();
     salvarDadosDebounced();
     renderTudo();
-    aviso('Taxa de entrega adicionada ao pedido.');
+    aviso(state.pedido.taxaEntregaAtiva ? 'Taxa de entrega adicionada ao pedido.' : 'Taxa de entrega removida do pedido.');
   }
 
   function atualizarTaxaEntregaDoPedido(formatar) {
     if (formatar) state.configuracoes.taxaEntrega = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
-    state.pedido.produtos.forEach(produto => {
-      if (produto.ehTaxaEntrega) produto.preco = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
-    });
     recalcularValorPedido();
   }
 
+  function valorTaxaEntregaPedido() {
+    return parseMoeda(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA) || 0;
+  }
+
+  function criarLinhaTaxaEntregaPedido() {
+    return {
+      nome: 'Taxa de entrega',
+      preco: formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA),
+      fotoDataUrl: '',
+      fotoUrl: '',
+      fotoNome: '',
+      ehTaxaEntrega: true
+    };
+  }
+
   function recalcularValorPedido() {
-    const total = produtosPedidoPreenchidos().reduce((soma, produto) => soma + (parseMoeda(produto.preco) || 0), 0);
+    const totalProdutos = produtosPedidoPreenchidos().reduce((soma, produto) => soma + (parseMoeda(produto.preco) || 0), 0);
+    const total = totalProdutos + (pedidoTemTaxaEntrega() ? valorTaxaEntregaPedido() : 0);
     state.pedido.valor = total > 0 ? total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
   }
 
@@ -993,7 +995,7 @@
     if (!produtoCatalogo) return;
 
     const produto = state.pedido.produtos[index];
-    if (!produto || produto.ehTaxaEntrega) return;
+    if (!produto) return;
 
     produto.catalogoId = produtoCatalogo.id || '';
     produto.nome = produtoCatalogo.nome || produto.nome;
@@ -1370,17 +1372,20 @@
 
   function addProdutosPedido(root) {
     const produtos = produtosPedidoPreenchidos();
+    const itensPedido = pedidoTemTaxaEntrega()
+      ? [...produtos, criarLinhaTaxaEntregaPedido()]
+      : produtos;
     const container = document.createElement('div');
     container.className = 'pedido-produtos';
     aplicarOffset(container, 'pedido.pedido');
 
-    if (!produtos.length) {
+    if (!itensPedido.length) {
       container.textContent = '';
       root.append(container);
       return;
     }
 
-    produtos.forEach(produto => {
+    itensPedido.forEach(produto => {
       const item = document.createElement('div');
       const fotoSrc = produto.fotoDataUrl || produto.fotoUrl || '';
       item.className = `pedido-produto-item${produto.ehTaxaEntrega ? ' pedido-produto-taxa' : ''}${fotoSrc ? '' : ' pedido-produto-sem-foto'}`;
