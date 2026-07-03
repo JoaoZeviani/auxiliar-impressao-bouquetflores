@@ -362,6 +362,7 @@
     on('#btnAdicionarProdutoPedido', 'click', adicionarProdutoPedidoManual);
     on('#btnAdicionarTaxaEntrega', 'click', adicionarTaxaEntregaPedido);
     on('#btnAtualizarCatalogoProdutos', 'click', () => carregarCatalogoProdutos({ silencioso: false }));
+    on('#btnRestaurarCatalogoSupabase', 'click', restaurarConfiguracaoCatalogoSupabase);
 
     $$('[data-payment]').forEach(chk => {
       chk.addEventListener('change', () => {
@@ -578,21 +579,14 @@
       const fotoResumo = fotoSrc ? (produto.fotoNome || 'Foto selecionada') : 'Sem foto';
       const podeRemover = state.pedido.produtos.length > 1 || produtoPossuiConteudo(produto);
       const inputFotoId = `produtoFoto-${produto.id || index}`;
-      const titulo = produto.ehTaxaEntrega ? 'Taxa de entrega' : `Produto ${index + 1}`;
 
       card.innerHTML = `
-        <div class="order-product-title-row">
-          <strong>${escapeHtml(titulo)}</strong>
-        </div>
         <div class="product-card-grid">
           <label class="product-name-field">Nome do produto
             <input type="text" value="${escapeAttr(produto.nome)}" data-produto-campo="nome" list="catalogoProdutosDatalist" autocomplete="off" ${produto.ehTaxaEntrega ? 'readonly' : ''}>
           </label>
           <label class="product-price-field">Preço
             <input type="text" value="${escapeAttr(produto.preco)}" data-produto-campo="preco" inputmode="decimal" autocomplete="off">
-          </label>
-          <label class="product-note-field">Observação
-            <textarea rows="1" data-produto-campo="observacao">${escapeHtml(produto.observacao)}</textarea>
           </label>
           <div class="product-photo-compact">
             <span class="product-photo-name">${escapeHtml(fotoResumo)}</span>
@@ -611,7 +605,7 @@
     const btnTaxa = $('#btnAdicionarTaxaEntrega');
     if (btnTaxa) {
       btnTaxa.disabled = pedidoTemTaxaEntrega();
-      btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Taxa de entrega adicionada' : 'Adicionar taxa de entrega';
+      btnTaxa.textContent = pedidoTemTaxaEntrega() ? 'Taxa adicionada' : 'Adicionar taxa';
     }
 
     const focoViaTab = proximoFocoProdutoPorTab;
@@ -711,7 +705,7 @@
       id: produto?.id || gerarIdProdutoPedido(),
       nome: String(produto?.nome || ''),
       preco: String(produto?.preco || ''),
-      observacao: String(produto?.observacao || ''),
+      observacao: '',
       fotoDataUrl: String(produto?.fotoDataUrl || ''),
       fotoUrl: String(produto?.fotoUrl || ''),
       fotoNome: String(produto?.fotoNome || ''),
@@ -734,7 +728,6 @@
     return Boolean(
       String(produto?.nome || '').trim()
       || String(produto?.preco || '').trim()
-      || String(produto?.observacao || '').trim()
       || produto?.fotoDataUrl
       || produto?.fotoUrl
       || produto?.ehTaxaEntrega
@@ -848,7 +841,6 @@
     const produto = produtoPedidoVazio();
     produto.nome = 'Taxa de entrega';
     produto.preco = formatarValorParaTela(state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA);
-    produto.observacao = '';
     produto.ehTaxaEntrega = true;
 
     normalizarProdutosPedido();
@@ -908,7 +900,6 @@
     produto.catalogoId = produtoCatalogo.id || '';
     produto.nome = produtoCatalogo.nome || produto.nome;
     produto.preco = formatarValorParaTela(produtoCatalogo.preco);
-    produto.observacao = produto.observacao || produtoCatalogo.descricao || '';
     produto.fotoUrl = produto.fotoDataUrl ? produto.fotoUrl : (produtoCatalogo.imagemUrl || '');
     produto.fotoNome = produto.fotoNome || (produtoCatalogo.imagemUrl ? 'Imagem do catálogo' : '');
   }
@@ -926,41 +917,92 @@
       state.catalogo.status = 'Carregando produtos do catálogo...';
       renderCatalogoControles();
 
-      const endpoint = `${url}/rest/v1/produtos?select=*&order=nome.asc`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          Accept: 'application/json'
-        }
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const detail = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status} ${detail}`.trim());
-      }
-
-      const rows = await response.json();
+      const { rows, origem } = await buscarProdutosCatalogoSupabase(url, key);
       state.catalogo.produtos = (Array.isArray(rows) ? rows : [])
         .map(mapearProdutoCatalogo)
         .filter(produto => produto.nome && produto.disponivel);
       state.catalogo.carregadoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-      state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.`;
+      state.catalogo.status = `${state.catalogo.produtos.length} produto(s) carregado(s) do catálogo.${origem ? ` Fonte: ${origem}.` : ''}`;
       salvarDadosDebounced();
       renderCatalogoControles();
       renderProdutosPedidoForm({ manterFoco: true });
       if (!silencioso) aviso('Catálogo carregado.');
     } catch (error) {
       console.error(error);
-      state.catalogo.status = 'Não foi possível carregar o catálogo. Confira a URL, a chave pública e a política SELECT da tabela produtos no Supabase.';
+      const detalhe = error?.message ? ` Detalhe: ${error.message}` : '';
+      state.catalogo.status = `Não foi possível carregar o catálogo.${detalhe}`;
       renderCatalogoControles();
       if (!silencioso) aviso('Não foi possível carregar o catálogo.');
     }
+  }
+
+  async function buscarProdutosCatalogoSupabase(url, key) {
+    const tentativas = [
+      { nome: 'REST produtos sem Authorization', tabela: 'produtos', order: 'nome.asc', authorization: false },
+      { nome: 'REST produtos sem ordem', tabela: 'produtos', order: '', authorization: false },
+      { nome: 'REST produtos com Authorization', tabela: 'produtos', order: 'nome.asc', authorization: true },
+      { nome: 'REST products sem Authorization', tabela: 'products', order: 'nome.asc', authorization: false }
+    ];
+    const erros = [];
+
+    for (const tentativa of tentativas) {
+      try {
+        const rows = await buscarProdutosCatalogoRest(url, key, tentativa);
+        return { rows, origem: tentativa.nome };
+      } catch (error) {
+        erros.push(`${tentativa.nome}: ${error.message}`);
+      }
+    }
+
+    throw new Error(erros.join(' | '));
+  }
+
+  async function buscarProdutosCatalogoRest(url, key, tentativa) {
+    const params = new URLSearchParams();
+    params.set('select', '*');
+    if (tentativa.order) params.set('order', tentativa.order);
+    const endpoint = `${url}/rest/v1/${tentativa.tabela}?${params.toString()}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      const headers = {
+        apikey: key,
+        Accept: 'application/json'
+      };
+      if (tentativa.authorization) headers.Authorization = `Bearer ${key}`;
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        signal: controller.signal,
+        headers
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}${detail ? ` - ${limitarTextoErro(detail)}` : ''}`);
+      }
+
+      const rows = await response.json();
+      if (!Array.isArray(rows)) throw new Error('resposta não é uma lista');
+      return rows;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function limitarTextoErro(texto) {
+    return String(texto || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+  }
+
+  function restaurarConfiguracaoCatalogoSupabase() {
+    state.configuracoes.catalogoSupabaseUrl = DEFAULT_CATALOGO_SUPABASE_URL;
+    state.configuracoes.catalogoSupabaseAnonKey = DEFAULT_CATALOGO_SUPABASE_ANON_KEY;
+    limparProdutosCatalogoCarregados();
+    salvarDadosDebounced();
+    renderInputs();
+    renderCatalogoControles();
+    aviso('Configuração padrão do catálogo restaurada.');
   }
 
   function mapearProdutoCatalogo(row = {}) {
@@ -1135,12 +1177,6 @@
 
       info.append(linha);
 
-      if (produto.observacao) {
-        const obs = document.createElement('div');
-        obs.className = 'pedido-produto-obs';
-        obs.textContent = produto.observacao;
-        info.append(obs);
-      }
 
       item.append(info);
       container.append(item);
@@ -1596,7 +1632,7 @@
       telefone: '(16) 99999-1234',
       pedido: '',
       produtos: [
-        { ...produtoPedidoVazio(), nome: 'Orquídea branca', preco: formatarValorParaTela('95'), observacao: 'Branca', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
+        { ...produtoPedidoVazio(), nome: 'Orquídea branca', preco: formatarValorParaTela('95'), observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
         { ...produtoPedidoVazio(), nome: 'Caixa de bombons', preco: formatarValorParaTela('25'), observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
         { ...produtoPedidoVazio(), nome: 'Cartão com mensagem', preco: '', observacao: '', fotoDataUrl: '', fotoUrl: '', fotoNome: '' },
         produtoPedidoVazio()
