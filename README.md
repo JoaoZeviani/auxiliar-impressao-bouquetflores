@@ -2,7 +2,7 @@
 
 Programa para preencher e imprimir os papéis físicos da Bouquet Flores:
 
-- Pedido
+- Pedido 
 - Cartão com dizeres
 - Cartão sem dizeres
 
