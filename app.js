@@ -7,7 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
-  const APP_SHELL_VERSION = 'v49';
+  const APP_SHELL_VERSION = 'v52';
 
 
   const defaultState = {
@@ -318,6 +318,9 @@
     if (!state.vendedores.includes(state.pedido.vendedor)) state.vendedores.unshift(state.pedido.vendedor);
     if (!['com', 'sem'].includes(state.cartao.tipo)) state.cartao.tipo = 'com';
     if (!state.cartao.fontFamily) state.cartao.fontFamily = defaultState.cartao.fontFamily;
+    if (state.cartao.telefone && state.pedido.telefone && normalizarTelefone(state.cartao.telefone) === normalizarTelefone(state.pedido.telefone)) {
+      state.cartao.telefone = '';
+    }
     state.configuracoes.fotoPedidoColorida = Boolean(state.configuracoes.fotoPedidoColorida);
     state.configuracoes.taxaEntrega = state.configuracoes.taxaEntrega || DEFAULT_TAXA_ENTREGA;
     // A configuração do catálogo é fixa no app para evitar erro por ajustes antigos salvos nos dispositivos.
@@ -1309,6 +1312,10 @@
     return removerAcentos(String(texto || '').trim().toLowerCase()).replace(/\s+/g, ' ');
   }
 
+  function normalizarTelefone(texto) {
+    return String(texto || '').replace(/\D/g, '');
+  }
+
   function renderPreview() {
     aplicarCalibragem();
     renderPedidoOverlays();
@@ -1760,7 +1767,9 @@
     state.cartao.destinatario = state.pedido.entregarPara || state.cartao.destinatario;
     const partesEndereco = [state.pedido.endereco, state.pedido.bairro].filter(Boolean);
     state.cartao.endereco = partesEndereco.join(' - ') || state.cartao.endereco;
-    state.cartao.telefone = state.pedido.telefone || state.cartao.telefone;
+    if (state.cartao.telefone && state.pedido.telefone && normalizarTelefone(state.cartao.telefone) === normalizarTelefone(state.pedido.telefone)) {
+      state.cartao.telefone = '';
+    }
     configPreviewMode = 'cartao';
     modalPreviewMode = 'cartao';
     salvarDadosDebounced();
@@ -1953,7 +1962,7 @@
       tipo: 'com',
       destinatario: 'Mariana Alves',
       endereco: 'Rua das Hortênsias, 128 - Jardim Primavera',
-      telefone: '(16) 99999-1234',
+      telefone: '',
       mensagem: 'Que seu dia seja leve, bonito e cheio de carinho. Receba este presente com todo meu amor.',
     };
     configPreviewMode = 'pedido';
