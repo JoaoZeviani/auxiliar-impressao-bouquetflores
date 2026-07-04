@@ -7,7 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
-  const APP_SHELL_VERSION = 'v53';
+  const APP_SHELL_VERSION = 'v54';
 
 
   const defaultState = {
@@ -525,6 +525,52 @@
     $$('input[name="tipoCartao"]').forEach(radio => {
       radio.checked = radio.value === state.cartao.tipo;
     });
+  }
+
+  function sincronizarFormularioComEstado() {
+    $$('[data-bind]').forEach(input => {
+      const path = input.dataset.bind;
+      if (!path) return;
+      setByPath(state, path, input.value ?? '');
+    });
+
+    $$('[data-bind-number]').forEach(input => {
+      const path = input.dataset.bindNumber;
+      if (!path) return;
+      const value = Number(String(input.value || '').replace(',', '.')) || 0;
+      setByPath(state, path, value);
+    });
+
+    const pagamentosSelecionados = $$('[data-payment]')
+      .filter(chk => chk.checked)
+      .map(chk => chk.dataset.payment);
+    state.pedido.pagamentos = pagamentos.filter(pagamento => pagamentosSelecionados.includes(pagamento));
+
+    const tipoCartaoSelecionado = $('input[name="tipoCartao"]:checked');
+    if (tipoCartaoSelecionado) state.cartao.tipo = tipoCartaoSelecionado.value;
+
+    sincronizarProdutosPedidoComFormulario();
+  }
+
+  function sincronizarProdutosPedidoComFormulario() {
+    const lista = $('#pedidoProdutosLista');
+    if (!lista || !Array.isArray(state.pedido.produtos)) return;
+
+    $$('.order-product-card', lista).forEach(card => {
+      const index = Number(card.dataset.produtoIndex);
+      const produto = state.pedido.produtos[index];
+      if (!Number.isInteger(index) || !produto) return;
+
+      $$('[data-produto-campo]', card).forEach(input => {
+        const campo = input.dataset.produtoCampo;
+        if (campo === 'nome' || campo === 'preco') {
+          produto[campo] = input.value ?? '';
+        }
+      });
+    });
+
+    normalizarProdutosPedido();
+    recalcularValorPedido();
   }
 
   function renderDiaSemanaInput() {
@@ -1523,6 +1569,7 @@
   }
 
   function abrirPreviewModal(mode) {
+    sincronizarFormularioComEstado();
     modalPreviewMode = mode;
     const title = $('#previewModalTitle');
     if (title) title.textContent = mode === 'pedido' ? 'Preview do pedido' : 'Preview do cartão';
@@ -1752,6 +1799,7 @@
   }
 
   function copiarPedidoParaCartao() {
+    sincronizarFormularioComEstado();
     state.cartao.destinatario = state.pedido.entregarPara || state.cartao.destinatario;
     const partesEndereco = [state.pedido.endereco, state.pedido.bairro].filter(Boolean);
     state.cartao.endereco = partesEndereco.join(' - ') || state.cartao.endereco;
@@ -2120,6 +2168,7 @@
   }
 
   function imprimir(tipo) {
+    sincronizarFormularioComEstado();
     if (tipo === 'pedido' && !validarPedidoParaImpressao()) return;
     recalcularValorPedido();
     normalizarValorPedido();
