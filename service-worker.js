@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auxiliar-impressao-bouquet-flores-v54';
+const CACHE_NAME = 'auxiliar-impressao-bouquet-flores-v55';
 const ASSETS = [
   './',
   './index.html',
@@ -39,7 +39,6 @@ self.addEventListener('activate', event => {
       .then(clients => Promise.all(clients.map(client => {
         try {
           client.postMessage({ type: 'APP_UPDATED', cacheName: CACHE_NAME });
-          if ('navigate' in client && client.url) return client.navigate(client.url).catch(() => {});
         } catch (_) {}
         return Promise.resolve();
       })))

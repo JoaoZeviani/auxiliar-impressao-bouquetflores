@@ -7,7 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
-  const APP_SHELL_VERSION = 'v54';
+  const APP_SHELL_VERSION = 'v55';
 
 
   const defaultState = {
@@ -183,6 +183,9 @@
   let catalogoRealtimeChannel = null;
   let catalogoRealtimeConfigKey = '';
   let catalogoSyncEventsBound = false;
+  let tipoImpressaoAtual = null;
+  let impressaoEmAndamento = false;
+  let reloadPendenteAposImpressao = false;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -204,11 +207,22 @@
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
 
     const recarregarComVersaoNova = () => {
+      if (impressaoEmAndamento || document.body.dataset.printMode) {
+        reloadPendenteAposImpressao = true;
+        return;
+      }
+
       const chaveReload = `auxiliar-impressao-sw-reloaded-${APP_SHELL_VERSION}`;
       if (sessionStorage.getItem(chaveReload)) return;
       sessionStorage.setItem(chaveReload, '1');
       window.location.reload();
     };
+
+    window.addEventListener('afterprint', () => {
+      if (!reloadPendenteAposImpressao) return;
+      reloadPendenteAposImpressao = false;
+      setTimeout(recarregarComVersaoNova, 250);
+    });
 
     const tinhaController = Boolean(navigator.serviceWorker.controller);
     let reloadEmAndamento = false;
@@ -485,6 +499,14 @@
     on('#btnImprimirCartao', 'click', () => imprimir(state.cartao.tipo === 'sem' ? 'cartao-sem' : 'cartao-com'));
     window.addEventListener('resize', () => {
       atualizarZoomPreviewModal();
+    });
+
+    // Reforço final: alguns navegadores/PWAs só congelam o DOM no evento
+    // beforeprint. Sincroniza e reconstrói a folha ativa nesse exato momento
+    // para impedir que cliente/fone fiquem fora da impressão por estado antigo.
+    window.addEventListener('beforeprint', prepararImpressaoNoMomentoExato);
+    window.addEventListener('afterprint', () => {
+      impressaoEmAndamento = false;
     });
   }
 
@@ -1425,8 +1447,8 @@
       addField(root, 'p-periodo nowrap', state.pedido.periodoEntrega, 'pedido.periodoEntrega');
       addField(root, 'p-vendedor nowrap', state.pedido.vendedor, 'pedido.vendedor');
       addField(root, 'p-valor nowrap', formatarValorParaTela(state.pedido.valor), 'pedido.valor');
-      addField(root, 'p-cliente', state.pedido.cliente, 'pedido.cliente');
-      addField(root, 'p-fone-cliente', state.pedido.foneCliente, 'pedido.foneCliente');
+      addCampoClientePedidoEstavel(root, 'p-cliente', state.pedido.cliente, CAMPO_CLIENTE_PEDIDO);
+      addCampoClientePedidoEstavel(root, 'p-fone-cliente', state.pedido.foneCliente, CAMPO_FONE_CLIENTE_PEDIDO);
 
       pagamentos.forEach((pagamento, index) => {
         if ((state.pedido.pagamentos || []).includes(pagamento)) {
@@ -1455,6 +1477,36 @@
       addField(root, 'cs-destinatario', state.cartao.destinatario, 'cartaoSem.destinatario');
       addField(root, 'cs-endereco', state.cartao.endereco, 'cartaoSem.endereco');
     });
+  }
+
+
+  const CAMPO_CLIENTE_PEDIDO = Object.freeze({
+    left: 27.5,
+    top: 183.7,
+    width: 106,
+    height: 7,
+    fontSize: '11pt'
+  });
+
+  const CAMPO_FONE_CLIENTE_PEDIDO = Object.freeze({
+    left: 25,
+    top: 193.2,
+    width: 110,
+    height: 7,
+    fontSize: '11pt'
+  });
+
+  function addCampoClientePedidoEstavel(root, className, text, cfg) {
+    const el = document.createElement('div');
+    el.className = `field ${className} print-stable-field`;
+    el.textContent = text || '';
+    el.style.left = `${cfg.left}mm`;
+    el.style.top = `${cfg.top}mm`;
+    el.style.width = `${cfg.width}mm`;
+    el.style.height = `${cfg.height}mm`;
+    el.style.fontSize = cfg.fontSize;
+    el.style.transform = 'none';
+    root.append(el);
   }
 
   function addProdutosPedido(root) {
@@ -2168,27 +2220,53 @@
   }
 
   function imprimir(tipo) {
-    sincronizarFormularioComEstado();
-    if (tipo === 'pedido' && !validarPedidoParaImpressao()) return;
-    recalcularValorPedido();
-    normalizarValorPedido();
-    sincronizarDiaSemanaComData(true);
-    renderInputs();
-    renderPreview();
+    tipoImpressaoAtual = tipo;
+    prepararDadosEPreviewParaImpressao(tipo);
+    if (tipo === 'pedido' && !validarPedidoParaImpressao()) {
+      tipoImpressaoAtual = null;
+      limparModoImpressao();
+      return;
+    }
+
+    // Salva de forma imediata antes de abrir a janela de impressão. Assim, se o
+    // navegador/PWA recarregar a página por atualização de service worker ou por
+    // comportamento do Android, cliente e fone não voltam para valores antigos.
+    salvarDados();
     prepararModoImpressao(tipo);
     garantirPaginaA4Impressao();
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        try {
-          window.focus();
-          window.print();
-        } catch (error) {
-          limparModoImpressao();
-          aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
-        }
+        setTimeout(() => {
+          try {
+            prepararImpressaoNoMomentoExato();
+            impressaoEmAndamento = true;
+            window.focus();
+            window.print();
+          } catch (error) {
+            limparModoImpressao();
+            aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
+          }
+        }, 80);
       });
     });
+  }
+
+  function prepararDadosEPreviewParaImpressao(tipo) {
+    sincronizarFormularioComEstado();
+    recalcularValorPedido();
+    normalizarValorPedido();
+    sincronizarDiaSemanaComData(true);
+    normalizarState();
+    renderInputs();
+    renderPreview();
+    if (tipo) prepararModoImpressao(tipo);
+  }
+
+  function prepararImpressaoNoMomentoExato() {
+    if (!tipoImpressaoAtual) return;
+    prepararDadosEPreviewParaImpressao(tipoImpressaoAtual);
+    garantirPaginaA4Impressao();
   }
 
   function prepararModoImpressao(tipo) {

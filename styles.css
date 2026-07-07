@@ -1380,3 +1380,22 @@ textarea { resize: vertical; min-height: 92px; }
     margin-left: 0 !important;
   }
 }
+
+
+/* Ajuste v55: campos Cliente/Fone do pedido sem transform para impressão estável.
+   Esses campos ficavam no fim do pedido e, em alguns navegadores/PWAs, podiam
+   sumir intermitentemente quando renderizados com transform antes do print. */
+.print-stable-field {
+  transform: none !important;
+  z-index: 30 !important;
+}
+
+@media print {
+  .print-stable-field {
+    transform: none !important;
+    z-index: 80 !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
