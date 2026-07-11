@@ -7,7 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
-  const APP_SHELL_VERSION = 'v55';
+  const APP_SHELL_VERSION = 'v56';
 
 
   const defaultState = {
@@ -501,10 +501,10 @@
       atualizarZoomPreviewModal();
     });
 
-    // Reforço final: alguns navegadores/PWAs só congelam o DOM no evento
-    // beforeprint. Sincroniza e reconstrói a folha ativa nesse exato momento
-    // para impedir que cliente/fone fiquem fora da impressão por estado antigo.
-    window.addEventListener('beforeprint', prepararImpressaoNoMomentoExato);
+    // Não reconstruímos o preview no beforeprint. Alguns navegadores podem
+    // congelar a página enquanto o DOM está sendo recriado, o que fazia campos
+    // adicionados no fim da folha, como Cliente e Fone, sumirem aleatoriamente.
+    window.addEventListener('beforeprint', garantirPaginaA4Impressao);
     window.addEventListener('afterprint', () => {
       impressaoEmAndamento = false;
     });
@@ -2219,7 +2219,7 @@
     return true;
   }
 
-  function imprimir(tipo) {
+  async function imprimir(tipo) {
     tipoImpressaoAtual = tipo;
     prepararDadosEPreviewParaImpressao(tipo);
     if (tipo === 'pedido' && !validarPedidoParaImpressao()) {
@@ -2234,22 +2234,31 @@
     salvarDados();
     prepararModoImpressao(tipo);
     garantirPaginaA4Impressao();
+    impressaoEmAndamento = true;
 
-    requestAnimationFrame(() => {
+    try {
+      // Aguarda o navegador aplicar todo o DOM/CSS antes de chamar window.print().
+      // A impressão passa a usar uma folha já estável; nada é recriado no
+      // beforeprint, evitando falha intermitente dos últimos campos do pedido.
+      await aguardarFolhaImpressaoEstavel();
+      window.focus();
+      window.print();
+    } catch (error) {
+      impressaoEmAndamento = false;
+      limparModoImpressao();
+      aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
+    }
+  }
+
+  function aguardarFolhaImpressaoEstavel() {
+    const fontesProntas = document.fonts?.ready?.catch?.(() => null) || Promise.resolve();
+    return fontesProntas.then(() => new Promise(resolve => {
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          try {
-            prepararImpressaoNoMomentoExato();
-            impressaoEmAndamento = true;
-            window.focus();
-            window.print();
-          } catch (error) {
-            limparModoImpressao();
-            aviso('Não foi possível abrir a janela de impressão. Tente novamente.');
-          }
-        }, 80);
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 120);
+        });
       });
-    });
+    }));
   }
 
   function prepararDadosEPreviewParaImpressao(tipo) {
@@ -2264,8 +2273,8 @@
   }
 
   function prepararImpressaoNoMomentoExato() {
-    if (!tipoImpressaoAtual) return;
-    prepararDadosEPreviewParaImpressao(tipoImpressaoAtual);
+    // Mantida apenas por compatibilidade com versões antigas/cache parcial.
+    // Não recria o DOM durante beforeprint.
     garantirPaginaA4Impressao();
   }
 
@@ -2298,25 +2307,26 @@
     }
 
     // Reforço inline para o Chrome/Android e drivers que ignoram ou demoram a
-    // aplicar o @page do arquivo CSS externo. O navegador ainda pode permitir
-    // alteração manual, mas a página enviada pelo app passa a declarar A4.
+    // aplicar o @page do arquivo CSS externo. Mantemos uma área real menor que
+    // A4 no fluxo para não criar segunda página, sem usar height: 1mm/overflow
+    // hidden, que podia cortar Cliente/Fone de forma intermitente.
     style.textContent = `
       @page { size: 210mm 297mm; margin: 0; }
       @page :first { size: 210mm 297mm; margin: 0; }
       @media print {
-        html, body { width: 210mm !important; max-width: 210mm !important; }
-        body.print-pedido::before,
-        body.print-cartao-com::before,
-        body.print-cartao-sem::before {
-          content: "";
-          position: fixed;
-          left: 0;
-          top: 0;
-          width: 210mm;
-          height: 297mm;
-          pointer-events: none;
-          z-index: -1;
+        html,
+        body {
+          width: 210mm !important;
+          min-width: 210mm !important;
+          max-width: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: white !important;
         }
+        body.print-pedido { height: 206mm !important; min-height: 206mm !important; max-height: 206mm !important; }
+        body.print-cartao-com { height: 196mm !important; min-height: 196mm !important; max-height: 196mm !important; }
+        body.print-cartao-sem { height: 102.5mm !important; min-height: 102.5mm !important; max-height: 102.5mm !important; }
       }
     `;
   }
