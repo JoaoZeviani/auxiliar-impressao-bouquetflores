@@ -1568,14 +1568,13 @@
   }
 
   function criarSimboloPix() {
-    const simbolo = document.createElement('span');
+    const simbolo = document.createElement('img');
     simbolo.className = 'pix-symbol';
+    simbolo.src = './assets/icone-pix.png';
+    simbolo.alt = '';
     simbolo.setAttribute('aria-hidden', 'true');
-
-    for (let i = 0; i < 4; i += 1) {
-      simbolo.append(document.createElement('i'));
-    }
-
+    simbolo.draggable = false;
+    simbolo.decoding = 'sync';
     return simbolo;
   }
 
