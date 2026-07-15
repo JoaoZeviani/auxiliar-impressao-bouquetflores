@@ -1392,6 +1392,65 @@ textarea { resize: vertical; min-height: 92px; }
   }
 }
 
+
+/* Símbolo compacto do Pix, embutido em CSS para funcionar offline e na impressão. */
+.pix-input-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.pix-symbol {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.13em;
+  color: #31b8bb;
+}
+
+.pix-symbol i {
+  position: absolute;
+  display: block;
+  width: 0.42em;
+  height: 0.42em;
+  border: 0.13em solid currentColor;
+  border-radius: 0.13em;
+  transform: rotate(45deg);
+  box-sizing: border-box;
+}
+
+.pix-symbol i:nth-child(1) {
+  left: 0.06em;
+  top: 0.06em;
+}
+
+.pix-symbol i:nth-child(2) {
+  right: 0.06em;
+  top: 0.06em;
+}
+
+.pix-symbol i:nth-child(3) {
+  left: 0.06em;
+  bottom: 0.06em;
+}
+
+.pix-symbol i:nth-child(4) {
+  right: 0.06em;
+  bottom: 0.06em;
+}
+
+.p-titular-pix strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35mm;
+}
+
+.p-titular-pix .pix-symbol {
+  font-size: 8.5pt;
+}
+
 /* Ajustes v57: Titular do PIX e microajustes exclusivos da impressão. */
 .pix-holder-row {
   display: none;

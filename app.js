@@ -1567,6 +1567,18 @@
     root.append(el);
   }
 
+  function criarSimboloPix() {
+    const simbolo = document.createElement('span');
+    simbolo.className = 'pix-symbol';
+    simbolo.setAttribute('aria-hidden', 'true');
+
+    for (let i = 0; i < 4; i += 1) {
+      simbolo.append(document.createElement('i'));
+    }
+
+    return simbolo;
+  }
+
   function addTitularPixPedido(root) {
     root.classList.add('has-titular-pix');
 
@@ -1574,7 +1586,11 @@
     campo.className = 'field p-titular-pix';
 
     const rotulo = document.createElement('strong');
-    rotulo.textContent = 'Titular do PIX:';
+    rotulo.append(
+      document.createTextNode('Titular do PIX '),
+      criarSimboloPix(),
+      document.createTextNode(':')
+    );
 
     const valor = document.createElement('span');
     valor.textContent = state.pedido.titularPix || '';
