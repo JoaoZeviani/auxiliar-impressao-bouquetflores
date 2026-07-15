@@ -110,6 +110,14 @@
               <label><input type="checkbox" data-payment="Pix"> Pix</label>
               <label><input type="checkbox" data-payment="Dinheiro"> Dinheiro</label>
             </div>
+            <div id="pixTitularRow" class="pix-holder-row" hidden>
+              <div class="pix-holder-controls">
+                <label>Titular do PIX
+                  <input type="text" data-bind="pedido.titularPix" autocomplete="off">
+                </label>
+                <button id="btnMesmoTitularPix" type="button" class="secondary">O mesmo</button>
+              </div>
+            </div>
           </fieldset>
 
           <fieldset>
