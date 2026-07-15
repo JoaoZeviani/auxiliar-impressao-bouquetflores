@@ -7,7 +7,7 @@
   const DEFAULT_CATALOGO_SUPABASE_ANON_KEY = 'sb_publishable_YXApcJjdBqHvU6A94Z0bAw_G68DBkm_';
   const DEFAULT_TAXA_ENTREGA = '25,00';
   const CATALOGO_REFRESH_VISIVEL_MS = 1200;
-  const APP_SHELL_VERSION = 'v56';
+  const APP_SHELL_VERSION = 'v58';
 
 
   const defaultState = {
@@ -27,6 +27,7 @@
       pagamentos: [],
       cliente: '',
       foneCliente: '',
+      titularPix: '',
       fotoDataUrl: '',
       fotoNome: ''
     },
@@ -334,6 +335,7 @@
     if (!Array.isArray(state.catalogo.produtos)) state.catalogo.produtos = [];
     if (!state.calibragem.baseCampos || typeof state.calibragem.baseCampos !== 'object') state.calibragem.baseCampos = structuredCloneSafe(defaultState.calibragem.baseCampos);
     state.pedido.pagamentos = pagamentos.filter(p => (state.pedido.pagamentos || []).includes(p));
+    state.pedido.titularPix = String(state.pedido.titularPix || '');
     migrarPedidoAntigoParaProdutos();
     normalizarProdutosPedido();
     recalcularValorPedido();
@@ -439,15 +441,14 @@
 
     on('#btnAdicionarProdutoPedido', 'click', abrirSeletorCatalogoProdutos);
     on('#btnAdicionarTaxaEntrega', 'click', adicionarTaxaEntregaPedido);
+    on('#btnMesmoTitularPix', 'click', copiarClienteParaTitularPix);
 
+    // Sincroniza os pagamentos a partir do estado real dos checkboxes.
+    // Escutamos click/input/change porque alguns navegadores móveis e PWAs
+    // não disparam esses eventos da mesma forma para caixas de seleção.
     $$('[data-payment]').forEach(chk => {
-      chk.addEventListener('change', () => {
-        const value = chk.dataset.payment;
-        const list = new Set(state.pedido.pagamentos || []);
-        chk.checked ? list.add(value) : list.delete(value);
-        state.pedido.pagamentos = pagamentos.filter(item => list.has(item));
-        salvarDadosDebounced();
-        renderPreview();
+      ['click', 'input', 'change'].forEach(eventName => {
+        chk.addEventListener(eventName, agendarSincronizacaoPagamentos);
       });
     });
 
@@ -528,6 +529,7 @@
     renderProdutosPedidoForm();
     renderFotoPedidoControles();
     renderCatalogoControles();
+    renderTitularPixControles();
     renderPreview();
   }
 
@@ -547,6 +549,60 @@
     $$('input[name="tipoCartao"]').forEach(radio => {
       radio.checked = radio.value === state.cartao.tipo;
     });
+
+    renderTitularPixControles();
+  }
+
+  let sincronizacaoPagamentosAgendada = false;
+
+  function agendarSincronizacaoPagamentos() {
+    if (sincronizacaoPagamentosAgendada) return;
+    sincronizacaoPagamentosAgendada = true;
+
+    queueMicrotask(() => {
+      sincronizacaoPagamentosAgendada = false;
+      sincronizarPagamentosDosCheckboxes();
+      salvarDadosDebounced();
+      renderTitularPixControles();
+      renderPreview();
+    });
+  }
+
+  function sincronizarPagamentosDosCheckboxes() {
+    const selecionados = $$('[data-payment]')
+      .filter(chk => chk.checked)
+      .map(chk => chk.dataset.payment);
+
+    state.pedido.pagamentos = pagamentos.filter(item => selecionados.includes(item));
+  }
+
+  function pedidoUsaPix() {
+    const checkboxPix = $('[data-payment="Pix"]');
+    if (checkboxPix) return checkboxPix.checked;
+    return (state.pedido.pagamentos || []).includes('Pix');
+  }
+
+  function renderTitularPixControles() {
+    const row = $('#pixTitularRow');
+    if (!row) return;
+
+    const mostrar = pedidoUsaPix();
+    row.hidden = !mostrar;
+    row.classList.toggle('is-visible', mostrar);
+    row.setAttribute('aria-hidden', mostrar ? 'false' : 'true');
+  }
+
+  function copiarClienteParaTitularPix() {
+    sincronizarFormularioComEstado();
+    const cliente = String(state.pedido.cliente || '').trim();
+    if (!cliente) {
+      aviso('Preencha o nome do cliente antes de usar “O mesmo”.');
+      return;
+    }
+    state.pedido.titularPix = cliente;
+    salvarDadosDebounced();
+    renderInputs();
+    renderPreview();
   }
 
   function sincronizarFormularioComEstado() {
@@ -1432,6 +1488,7 @@
     const data = splitDateParts(state.pedido.dataEntrega);
     $$('.pedido-overlay').forEach(root => {
       root.innerHTML = '';
+      root.classList.remove('has-titular-pix');
       root.classList.toggle('has-pedido-foto', produtosPedidoPreenchidos().some(produto => produto.fotoDataUrl || produto.fotoUrl));
       root.classList.toggle('foto-pedido-colorida', Boolean(state.configuracoes.fotoPedidoColorida));
       root.classList.toggle('foto-pedido-pb', !state.configuracoes.fotoPedidoColorida);
@@ -1440,6 +1497,7 @@
       addField(root, 'p-bairro', state.pedido.bairro, 'pedido.bairro');
       addField(root, 'p-telefone', state.pedido.telefone, 'pedido.telefone');
       addProdutosPedido(root);
+      if (pedidoUsaPix()) addTitularPixPedido(root);
       addField(root, 'p-data-dia nowrap', data.dia, 'pedido.dataDia');
       addField(root, 'p-data-mes nowrap', data.mes, 'pedido.dataMes');
       addField(root, 'p-data-ano nowrap', data.ano, 'pedido.dataAno');
@@ -1507,6 +1565,22 @@
     el.style.fontSize = cfg.fontSize;
     el.style.transform = 'none';
     root.append(el);
+  }
+
+  function addTitularPixPedido(root) {
+    root.classList.add('has-titular-pix');
+
+    const campo = document.createElement('div');
+    campo.className = 'field p-titular-pix';
+
+    const rotulo = document.createElement('strong');
+    rotulo.textContent = 'Titular do PIX:';
+
+    const valor = document.createElement('span');
+    valor.textContent = state.pedido.titularPix || '';
+
+    campo.append(rotulo, valor);
+    root.append(campo);
   }
 
   function addProdutosPedido(root) {
@@ -2040,7 +2114,8 @@
       valor: '',
       pagamentos: [...pagamentos],
       cliente: 'João Pereira',
-      foneCliente: '(16) 98888-4321'
+      foneCliente: '(16) 98888-4321',
+      titularPix: 'João Pereira'
     };
     recalcularValorPedido();
 
